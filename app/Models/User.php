@@ -15,12 +15,13 @@ class User extends Authenticatable
     /**
      * The attributes that are mass assignable.
      *
-     * @var list<string>
+     * @var array<int, string>
      */
     protected $fillable = [
-        'name',
-        'email',
-        'password',
+        'barcode',
+        'phone_number',
+        'branch_id',
+        'last_visit',
     ];
 
     /**
@@ -36,13 +37,33 @@ class User extends Authenticatable
     /**
      * Get the attributes that should be cast.
      *
-     * @return array<string, string>
+     * @var array<string, string>
      */
-    protected function casts(): array
+    protected $casts = [
+        'last_visit' => 'datetime',
+    ];
+
+    /**
+     * Get the photos for the user.
+     */
+    public function photos()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->hasMany(Photo::class);
+    }
+
+    /**
+     * Get the orders for the user.
+     */
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    /**
+     * Get the branch that the user belongs to.
+     */
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }
