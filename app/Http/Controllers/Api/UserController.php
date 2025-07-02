@@ -7,6 +7,7 @@ use App\Services\User\UserServiceInterface;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
@@ -39,10 +40,14 @@ class UserController extends Controller
         }
 
         try {
+            // Get the authenticated staff ID
+            $staffId = Auth::guard('staff')->id();
+            
             // Register the user
             $user = $this->userService->registerUser(
                 $request->phone_number,
-                $request->branch_id
+                $request->branch_id,
+                $staffId
             );
 
             return $this->successResponse(201, 'User registered successfully', [

@@ -21,6 +21,7 @@ class Staff extends Authenticatable
         'password',
         'role',
         'branch_id',
+        'api_token',
     ];
 
     /**
@@ -72,5 +73,14 @@ class Staff extends Authenticatable
     public function receivedPayments()
     {
         return $this->hasMany(Payment::class, 'received_by');
+    }
+
+    /**
+     * Get the users registered by this staff member.
+     * Note: This requires adding a 'registered_by' field to the users table.
+     */
+    public function registeredUsers()
+    {
+        return $this->hasMany(User::class, 'registered_by');
     }
 } 

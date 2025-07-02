@@ -11,9 +11,10 @@ interface UserServiceInterface
      * 
      * @param string $phoneNumber
      * @param int $branchId
+     * @param int|null $staffId
      * @return User
      */
-    public function registerUser(string $phoneNumber, int $branchId): User;
+    public function registerUser(string $phoneNumber, int $branchId, ?int $staffId = null): User;
 
     /**
      * Validate user access by barcode and phone number

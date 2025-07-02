@@ -24,9 +24,10 @@ class UserService implements UserServiceInterface
      * 
      * @param string $phoneNumber
      * @param int $branchId
+     * @param int|null $staffId
      * @return User
      */
-    public function registerUser(string $phoneNumber, int $branchId): User
+    public function registerUser(string $phoneNumber, int $branchId, ?int $staffId = null): User
     {
         // Generate a unique barcode
         $barcode = $this->barcodeService->generateUniqueBarcode($branchId);
@@ -36,6 +37,7 @@ class UserService implements UserServiceInterface
             'barcode' => $barcode,
             'phone_number' => $phoneNumber,
             'branch_id' => $branchId,
+            'registered_by' => $staffId,
             'last_visit' => now(),
         ]);
         

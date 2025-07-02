@@ -21,6 +21,7 @@ class User extends Authenticatable
         'barcode',
         'phone_number',
         'branch_id',
+        'registered_by',
         'last_visit',
     ];
 
@@ -65,5 +66,13 @@ class User extends Authenticatable
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * Get the staff member who registered this user.
+     */
+    public function registeredBy()
+    {
+        return $this->belongsTo(Staff::class, 'registered_by');
     }
 }

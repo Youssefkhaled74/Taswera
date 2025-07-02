@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\PhotoController;
+use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,9 +19,17 @@ use Illuminate\Support\Facades\Route;
 // Public routes
 Route::post('/users/validate-access', [UserController::class, 'validateAccess']);
 Route::get('/photos', [PhotoController::class, 'getPhotos']);
+Route::post('/staff/login', [StaffController::class, 'login']);
 
 // Staff-only routes
-Route::middleware('auth:staff')->group(function () {
+Route::middleware('auth:staff-api')->group(function () {
+    // User management
     Route::post('/users/register', [UserController::class, 'register']);
+    
+    // Photo management
     Route::post('/photos/upload', [PhotoController::class, 'upload']);
+    
+    // Staff management
+    Route::get('/staff', [StaffController::class, 'getAllStaff']);
+    Route::get('/staff/{staffId}/photos', [StaffController::class, 'getStaffPhotos']);
 }); 
