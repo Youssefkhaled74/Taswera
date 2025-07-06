@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\PhotoController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\UserController;
@@ -16,20 +17,22 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-// Public routes
-Route::post('/users/validate-access', [UserController::class, 'validateAccess']);
-Route::get('/photos', [PhotoController::class, 'getPhotos']);
-Route::post('/staff/login', [StaffController::class, 'login']);
+// Public Routes
+Route::post('staff/login', [StaffController::class, 'login']);
 
-// Staff-only routes
-Route::middleware('auth:staff-api')->group(function () {
-    // User management
-    Route::post('/users/register', [UserController::class, 'register']);
-    
-    // Photo management
-    Route::post('/photos/upload', [PhotoController::class, 'upload']);
-    
-    // Staff management
-    Route::get('/staff', [StaffController::class, 'getAllStaff']);
-    Route::get('/staff/{staffId}/photos', [StaffController::class, 'getStaffPhotos']);
-}); 
+// Protected Routes
+// Staff Routes
+Route::get('staff', [StaffController::class, 'index']);
+Route::post('staff', [StaffController::class, 'store']);
+Route::get('staffShow/{staff}', [StaffController::class, 'show']);
+Route::post('staffUpdate/{staff}', [StaffController::class, 'update']);
+Route::delete('staffDelete/{staff}', [StaffController::class, 'destroy']);
+Route::post('staff/{staff}/change-password', [StaffController::class, 'changePassword']);
+Route::post('staff/logout', [StaffController::class, 'logout']);
+
+// Branch Routes
+Route::get('branches', [BranchController::class, 'index']);
+Route::post('branches', [BranchController::class, 'store']);
+Route::get('branches/{branch}', [BranchController::class, 'show']);
+Route::put('branches/{branch}', [BranchController::class, 'update']);
+Route::delete('branches/{branch}', [BranchController::class, 'destroy']);

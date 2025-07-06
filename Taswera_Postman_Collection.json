@@ -10,63 +10,6 @@
 			"name": "Public Routes",
 			"item": [
 				{
-					"name": "Validate User Access",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Accept",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"barcode\": \"your_barcode_here\",\n    \"phone_number\": \"your_phone_number_here\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/users/validate-access",
-							"host": ["{{base_url}}"],
-							"path": ["api", "users", "validate-access"]
-						},
-						"description": "Validate user access using barcode and phone number"
-					}
-				},
-				{
-					"name": "Get Photos",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Accept",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/photos?barcode=your_barcode_here&phone_number=your_phone_number_here",
-							"host": ["{{base_url}}"],
-							"path": ["api", "photos"],
-							"query": [
-								{
-									"key": "barcode",
-									"value": "your_barcode_here"
-								},
-								{
-									"key": "phone_number",
-									"value": "your_phone_number_here"
-								}
-							]
-						},
-						"description": "Get photos for a user using barcode and phone number"
-					}
-				},
-				{
 					"name": "Staff Login",
 					"request": {
 						"method": "POST",
@@ -100,7 +43,43 @@
 			"name": "Staff Routes",
 			"item": [
 				{
-					"name": "Register User",
+					"name": "List Staff",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/staff?page=1&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "staff"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number for pagination"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of items per page"
+								}
+							]
+						},
+						"description": "Get all staff members with pagination (default: 10 items per page)"
+					}
+				},
+				{
+					"name": "Create Staff",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -117,7 +96,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"phone_number\": \"your_phone_number_here\",\n    \"branch_id\": 1\n}",
+							"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\",\n    \"password\": \"secure_password\",\n    \"branch_id\": 1,\n    \"role\": \"staff\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -125,15 +104,114 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/api/users/register",
+							"raw": "{{base_url}}/api/staff",
 							"host": ["{{base_url}}"],
-							"path": ["api", "users", "register"]
+							"path": ["api", "staff"]
 						},
-						"description": "Register a new user (Staff only)"
+						"description": "Create a new staff member"
 					}
 				},
 				{
-					"name": "Upload Photo",
+					"name": "Get Staff",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/staff/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "staff", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Get a specific staff member"
+					}
+				},
+				{
+					"name": "Update Staff",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"John Doe Updated\",\n    \"email\": \"john.updated@example.com\",\n    \"branch_id\": 2,\n    \"role\": \"admin\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/staff/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "staff", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Update a staff member"
+					}
+				},
+				{
+					"name": "Delete Staff",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/staff/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "staff", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Delete a staff member"
+					}
+				},
+				{
+					"name": "Change Staff Password",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -149,93 +227,223 @@
 							}
 						],
 						"body": {
-							"mode": "formdata",
-							"formdata": [
-								{
-									"key": "barcode",
-									"value": "your_barcode_here",
-									"type": "text"
-								},
-								{
-									"key": "branch_id",
-									"value": "1",
-									"type": "text"
-								},
-								{
-									"key": "photo",
-									"type": "file",
-									"src": []
+							"mode": "raw",
+							"raw": "{\n    \"current_password\": \"old_password\",\n    \"new_password\": \"new_password\",\n    \"new_password_confirmation\": \"new_password\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
 								}
-							]
-						},
-						"url": {
-							"raw": "{{base_url}}/api/photos/upload",
-							"host": ["{{base_url}}"],
-							"path": ["api", "photos", "upload"]
-						},
-						"description": "Upload a photo for a user (Staff only)"
-					}
-				},
-				{
-					"name": "Get All Staff",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Accept",
-								"value": "application/json",
-								"type": "text"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{staff_token}}",
-								"type": "text"
 							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/staff",
-							"host": ["{{base_url}}"],
-							"path": ["api", "staff"],
-							"query": [
-								{
-									"key": "branch_id",
-									"value": "1",
-									"description": "Optional branch filter",
-									"disabled": true
-								}
-							]
 						},
-						"description": "Get all staff members (Staff only)"
-					}
-				},
-				{
-					"name": "Get Staff Photos",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Accept",
-								"value": "application/json",
-								"type": "text"
-							},
-							{
-								"key": "Authorization",
-								"value": "Bearer {{staff_token}}",
-								"type": "text"
-							}
-						],
 						"url": {
-							"raw": "{{base_url}}/api/staff/:staffId/photos",
+							"raw": "{{base_url}}/api/staff/:id/change-password",
 							"host": ["{{base_url}}"],
-							"path": ["api", "staff", ":staffId", "photos"],
+							"path": ["api", "staff", ":id", "change-password"],
 							"variable": [
 								{
-									"key": "staffId",
+									"key": "id",
 									"value": "1"
 								}
 							]
 						},
-						"description": "Get photos uploaded by a specific staff member (Staff only)"
+						"description": "Change staff member password"
+					}
+				},
+				{
+					"name": "Staff Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/staff/logout",
+							"host": ["{{base_url}}"],
+							"path": ["api", "staff", "logout"]
+						},
+						"description": "Logout staff member"
+					}
+				}
+			]
+		},
+		{
+			"name": "Branch Routes",
+			"item": [
+				{
+					"name": "List Branches",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/branches?page=1&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "branches"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number for pagination"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of items per page"
+								}
+							]
+						},
+						"description": "Get all branches with pagination (default: 10 items per page)"
+					}
+				},
+				{
+					"name": "Create Branch",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Main Branch\",\n    \"address\": \"123 Main St\",\n    \"phone\": \"+1234567890\",\n    \"email\": \"branch@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/branches",
+							"host": ["{{base_url}}"],
+							"path": ["api", "branches"]
+						},
+						"description": "Create a new branch"
+					}
+				},
+				{
+					"name": "Get Branch",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/branches/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "branches", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Get a specific branch"
+					}
+				},
+				{
+					"name": "Update Branch",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Branch\",\n    \"address\": \"456 Updated St\",\n    \"phone\": \"+0987654321\",\n    \"email\": \"updated.branch@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/branches/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "branches", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Update a branch"
+					}
+				},
+				{
+					"name": "Delete Branch",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/branches/:id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "branches", ":id"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Delete a branch"
 					}
 				}
 			]
@@ -253,4 +461,4 @@
 			"type": "string"
 		}
 	]
-} 
+}

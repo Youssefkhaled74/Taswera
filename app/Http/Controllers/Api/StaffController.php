@@ -3,109 +3,157 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\Staff\StaffServiceInterface;
+use App\Http\Resources\StaffResource;
+use App\Models\Staff;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class StaffController extends Controller
 {
     use ApiResponse;
 
-    protected $staffService;
-
-    public function __construct(StaffServiceInterface $staffService)
-    {
-        $this->staffService = $staffService;
-    }
-
     /**
-     * Login a staff member
-     * 
-     * @param Request $request
-     * @return JsonResponse
+     * Staff login
+     *
+     * @throws ValidationException
      */
     public function login(Request $request): JsonResponse
     {
-        // Validate request
-        $validator = Validator::make($request->all(), [
+        $validated = $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',
         ]);
 
-        if ($validator->fails()) {
-            return $this->errorResponse(422, 'Validation failed', $validator->errors());
+        $staff = Staff::where('email', $validated['email'])->first();
+
+        if (!$staff || !Hash::check($validated['password'], $staff->password)) {
+            return $this->errorResponse('Invalid credentials', Response::HTTP_UNAUTHORIZED);
         }
 
-        try {
-            // Attempt login
-            $result = $this->staffService->login(
-                $request->email,
-                $request->password
-            );
+        $token = $staff->createToken('staff-token')->plainTextToken;
 
-            if (!$result) {
-                return $this->errorResponse(401, 'Invalid credentials');
-            }
-
-            return $this->successResponse(200, 'Login successful', [
-                'staff' => $result['staff'],
-                'token' => $result['token'],
-            ]);
-        } catch (\Exception $e) {
-            return $this->errorResponse(500, 'Failed to login: ' . $e->getMessage());
-        }
+        return $this->successResponse([
+            'staff' => new StaffResource($staff),
+            'token' => $token,
+        ], 'Login successful');
     }
 
     /**
-     * Get all staff members with their statistics
-     * 
-     * @param Request $request
-     * @return JsonResponse
+     * Staff logout
      */
-    public function getAllStaff(Request $request): JsonResponse
+    public function logout(Request $request): JsonResponse
     {
-        try {
-            // Get branch ID from request if provided
-            $branchId = $request->branch_id;
-            
-            // Get all staff with stats
-            $staffMembers = $this->staffService->getAllStaffWithStats($branchId);
-
-            return $this->successResponse(200, 'Staff members retrieved successfully', [
-                'staff' => $staffMembers,
-            ]);
-        } catch (\Exception $e) {
-            return $this->errorResponse(500, 'Failed to retrieve staff members: ' . $e->getMessage());
-        }
+        $request->user()->currentAccessToken()->delete();
+        return $this->successResponse(null, 'Logged out successfully');
     }
 
     /**
-     * Get photos uploaded by a specific staff member
-     * 
-     * @param Request $request
-     * @param int $staffId
-     * @return JsonResponse
+     * Display a listing of staff members.
      */
-    public function getStaffPhotos(Request $request, int $staffId): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        try {
-            // Get photos uploaded by staff
-            $photos = $this->staffService->getPhotosByStaff($staffId);
+        $limit = $request->input('limit', 10);
+        $page = $request->input('page', 1);
+        $query = Staff::with('branch');
+        return $this->successResponse(
+            paginate($query, StaffResource::class, $limit, $page),
+            'Staff members retrieved successfully'
+        );
+    }
 
-            // Add URLs to photos
-            $photosWithUrls = $photos->map(function ($photo) {
-                $photo->file_url = asset('storage/' . $photo->file_path);
-                $photo->thumbnail_url = asset('storage/' . $photo->thumbnail_path);
-                return $photo;
-            });
+    /**
+     * Store a new staff member.
+     *
+     * @throws ValidationException
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:staff,email',
+            'password' => 'required|string|min:8',
+            'branch_id' => 'required|exists:branches,id',
+            'role' => 'required|string|in:staff,admin',
+        ]);
 
-            return $this->successResponse(200, 'Photos retrieved successfully', [
-                'photos' => $photosWithUrls,
-            ]);
-        } catch (\Exception $e) {
-            return $this->errorResponse(500, 'Failed to retrieve photos: ' . $e->getMessage());
+        $validated['password'] = Hash::make($validated['password']);
+        
+        $staff = Staff::create($validated);
+        return $this->successResponse(
+            new StaffResource($staff),
+            'Staff member created successfully',
+            Response::HTTP_CREATED
+        );
+    }
+
+    /**
+     * Display the specified staff member.
+     */
+    public function show(Staff $staff): JsonResponse
+    {
+        if (!$staff) {
+            return $this->errorResponse('Staff member not found', Response::HTTP_NOT_FOUND);
         }
+        return $this->successResponse(
+            new StaffResource($staff->load('branch')),
+            'Staff member retrieved successfully'
+        );
+    }
+
+    /**
+     * Update the specified staff member.
+     *
+     * @throws ValidationException
+     */
+    public function update(Request $request, Staff $staff): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|email|unique:staff,email,' . $staff->id,
+            'branch_id' => 'sometimes|required|exists:branches,id',
+            'role' => 'sometimes|required|string|in:staff,admin',
+        ]);
+
+        $staff->update($validated);
+        return $this->successResponse(
+            new StaffResource($staff->fresh()->load('branch')),
+            'Staff member updated successfully'
+        );
+    }
+
+    /**
+     * Remove the specified staff member.
+     */
+    public function destroy(Staff $staff): JsonResponse
+    {
+        $staff->delete();
+        return $this->successResponse(null, 'Staff member deleted successfully');
+    }
+
+    /**
+     * Change staff member password.
+     *
+     * @throws ValidationException
+     */
+    public function changePassword(Request $request, Staff $staff): JsonResponse
+    {
+        $validated = $request->validate([
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if (!Hash::check($validated['current_password'], $staff->password)) {
+            return $this->errorResponse('Current password is incorrect', Response::HTTP_UNAUTHORIZED);
+        }
+
+        $staff->update([
+            'password' => Hash::make($validated['new_password']),
+        ]);
+
+        return $this->successResponse(null, 'Password changed successfully');
     }
 } 
