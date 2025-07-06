@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 trait HandlesMediaUploads
 {
@@ -32,5 +33,27 @@ trait HandlesMediaUploads
     {
         $model->clearMediaCollection($collection);
         return true;
+    }
+
+    /**
+     * Upload a media file
+     */
+    protected function uploadMedia(UploadedFile $file, string $directory): string
+    {
+        $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+        $path = $file->storeAs("public/{$directory}", $filename);
+        return str_replace('public/', '', $path);
+    }
+
+    /**
+     * Delete a media file
+     */
+    protected function deleteMedia(?string $path): bool
+    {
+        if (!$path) {
+            return false;
+        }
+        
+        return Storage::delete('public/' . $path);
     }
 }

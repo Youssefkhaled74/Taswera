@@ -3,16 +3,22 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PhotoResource;
+use App\Models\Photo;
 use App\Services\Photo\PhotoServiceInterface;
 use App\Traits\ApiResponse;
+use App\Traits\HandlesMediaUploads;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class PhotoController extends Controller
 {
-    use ApiResponse;
+    use ApiResponse, HandlesMediaUploads;
 
     protected $photoService;
 
@@ -22,97 +28,130 @@ class PhotoController extends Controller
     }
 
     /**
-     * Upload a photo for a user by barcode
-     * 
-     * @param Request $request
-     * @return JsonResponse
+     * Get photos for offline dashboard
+     */
+    public function offlineDashboard(Request $request): JsonResponse
+    {
+        $limit = $request->input('limit', 10);
+        $page = $request->input('page', 1);
+        
+        $query = Photo::with(['staff', 'branch'])
+            ->where('sync_status', 'pending')
+            ->where('branch_id', Auth::user()->branch_id)
+            ->latest();
+
+        return $this->successResponse(
+            paginate($query, PhotoResource::class, $limit, $page),
+            'Offline dashboard photos retrieved successfully'
+        );
+    }
+
+    /**
+     * Get photos taken by specific staff member
+     */
+    public function staffPhotos(Request $request): JsonResponse
+    {
+        $limit = $request->input('limit', 10);
+        $page = $request->input('page', 1);
+        
+        $query = Photo::with(['staff', 'branch'])
+            ->where('staff_id', Auth::id())
+            ->latest();
+
+        return $this->successResponse(
+            paginate($query, PhotoResource::class, $limit, $page),
+            'Staff photos retrieved successfully'
+        );
+    }
+
+    /**
+     * Upload new photos
+     *
+     * @throws ValidationException
      */
     public function upload(Request $request): JsonResponse
     {
-        // Validate request
-        $validator = Validator::make($request->all(), [
-            'barcode' => 'required|string',
-            'photo' => 'required|image|max:10240', // Max 10MB
-            'branch_id' => 'required|integer|exists:branches,id',
+        $request->validate([
+            'photos.*' => 'required|image|max:10240', // 10MB max per photo
+            'metadata' => 'nullable|json',
         ]);
 
-        if ($validator->fails()) {
-            return $this->errorResponse(422, 'Validation failed', $validator->errors());
-        }
-
         try {
-            // Get the authenticated staff ID
-            $staffId = Auth::guard('staff')->id();
-            
-            if (!$staffId) {
-                return $this->errorResponse(401, 'Unauthorized');
+            DB::beginTransaction();
+
+            $uploadedPhotos = [];
+            if ($request->hasFile('photos')) {
+                foreach ($request->file('photos') as $photo) {
+                    $path = $this->uploadMedia($photo, 'photos');
+                    
+                    $uploadedPhotos[] = Photo::create([
+                        'file_path' => $path,
+                        'staff_id' => Auth::id(),
+                        'branch_id' => Auth::user()->branch_id,
+                        'status' => 'pending',
+                        'sync_status' => 'pending',
+                        'metadata' => $request->input('metadata'),
+                    ]);
+                }
             }
 
-            // Upload the photo
-            $photo = $this->photoService->uploadPhotoByBarcode(
-                $request->barcode,
-                $request->file('photo'),
-                $staffId,
-                $request->branch_id
+            DB::commit();
+
+            return $this->successResponse(
+                PhotoResource::collection($uploadedPhotos),
+                'Photos uploaded successfully',
+                Response::HTTP_CREATED
             );
-
-            if (!$photo) {
-                return $this->errorResponse(404, 'User not found or invalid barcode');
-            }
-
-            return $this->successResponse(201, 'Photo uploaded successfully', [
-                'photo' => $photo,
-                'file_url' => asset('storage/' . $photo->file_path),
-                'thumbnail_url' => asset('storage/' . $photo->thumbnail_path),
-            ]);
         } catch (\Exception $e) {
-            return $this->errorResponse(500, 'Failed to upload photo: ' . $e->getMessage());
+            DB::rollBack();
+            return $this->errorResponse('Failed to upload photos: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     /**
-     * Get photos for a user by barcode and phone number
-     * 
-     * @param Request $request
-     * @return JsonResponse
+     * Update photo sync status
      */
-    public function getPhotos(Request $request): JsonResponse
+    public function updateSyncStatus(Request $request, Photo $photo): JsonResponse
     {
-        // Validate request
-        $validator = Validator::make($request->all(), [
-            'barcode' => 'required|string',
-            'phone_number' => 'required|string|min:10|max:15',
+        $request->validate([
+            'sync_status' => 'required|in:pending,synced,failed',
         ]);
 
-        if ($validator->fails()) {
-            return $this->errorResponse(422, 'Validation failed', $validator->errors());
+        $photo->update([
+            'sync_status' => $request->sync_status,
+        ]);
+
+        return $this->successResponse(
+            new PhotoResource($photo),
+            'Photo sync status updated successfully'
+        );
+    }
+
+    /**
+     * Delete a photo
+     */
+    public function destroy(Photo $photo): JsonResponse
+    {
+        // Only allow deletion if photo belongs to the staff member or is in their branch
+        if ($photo->staff_id !== Auth::id() && $photo->branch_id !== Auth::user()->branch_id) {
+            return $this->errorResponse('Unauthorized', Response::HTTP_FORBIDDEN);
         }
 
         try {
-            // Get photos
-            $photos = $this->photoService->getPhotosByBarcodeAndPhone(
-                $request->barcode,
-                $request->phone_number
-            );
-
-            if ($photos->isEmpty()) {
-                return $this->successResponse(200, 'No photos found', [
-                    'photos' => [],
-                ]);
-            }
-
-            // Add URLs to photos
-            $photosWithUrls = $photos->map(function ($photo) {
-                $photo->file_url = asset('storage/' . $photo->file_path);
-                $photo->thumbnail_url = asset('storage/' . $photo->thumbnail_path);
-                return $photo;
-            });
-
-            return $this->successResponse(200, 'Photos retrieved successfully', [
-                'photos' => $photosWithUrls,
-            ]);
+            DB::beginTransaction();
+            
+            // Delete the physical file
+            $this->deleteMedia($photo->file_path);
+            
+            // Delete the database record
+            $photo->delete();
+            
+            DB::commit();
+            
+            return $this->successResponse(null, 'Photo deleted successfully');
         } catch (\Exception $e) {
-            return $this->errorResponse(500, 'Failed to retrieve photos: ' . $e->getMessage());
+            DB::rollBack();
+            return $this->errorResponse('Failed to delete photo: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 } 

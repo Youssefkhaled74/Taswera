@@ -447,6 +447,195 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "Photo Management",
+			"item": [
+				{
+					"name": "Offline Dashboard Photos",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/photos/offline-dashboard?page=1&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "photos", "offline-dashboard"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number for pagination"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of items per page"
+								}
+							]
+						},
+						"description": "Get photos for offline dashboard with pagination"
+					}
+				},
+				{
+					"name": "Staff Photos",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/photos/staff?page=1&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "photos", "staff"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number for pagination"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Number of items per page"
+								}
+							]
+						},
+						"description": "Get photos taken by the authenticated staff member"
+					}
+				},
+				{
+					"name": "Upload Photos",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "photos[]",
+									"type": "file",
+									"src": [],
+									"description": "Multiple photo files (max 10MB each)"
+								},
+								{
+									"key": "metadata",
+									"value": "{}",
+									"type": "text",
+									"description": "Optional JSON metadata"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/photos/upload",
+							"host": ["{{base_url}}"],
+							"path": ["api", "photos", "upload"]
+						},
+						"description": "Upload multiple photos with optional metadata"
+					}
+				},
+				{
+					"name": "Update Photo Sync Status",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"sync_status\": \"synced\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/photos/:photo_id/sync-status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "photos", ":photo_id", "sync-status"],
+							"variable": [
+								{
+									"key": "photo_id",
+									"value": "1",
+									"description": "ID of the photo"
+								}
+							]
+						},
+						"description": "Update the sync status of a photo"
+					}
+				},
+				{
+					"name": "Delete Photo",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/photos/:photo_id",
+							"host": ["{{base_url}}"],
+							"path": ["api", "photos", ":photo_id"],
+							"variable": [
+								{
+									"key": "photo_id",
+									"value": "1",
+									"description": "ID of the photo to delete"
+								}
+							]
+						},
+						"description": "Delete a photo (only allowed for photos taken by the staff member or in their branch)"
+					}
+				}
+			]
 		}
 	],
 	"variable": [

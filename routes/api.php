@@ -21,18 +21,27 @@ use Illuminate\Support\Facades\Route;
 Route::post('staff/login', [StaffController::class, 'login']);
 
 // Protected Routes
-// Staff Routes
-Route::get('staff', [StaffController::class, 'index']);
-Route::post('staff', [StaffController::class, 'store']);
-Route::get('staffShow/{staff}', [StaffController::class, 'show']);
-Route::post('staffUpdate/{staff}', [StaffController::class, 'update']);
-Route::delete('staffDelete/{staff}', [StaffController::class, 'destroy']);
-Route::post('staff/{staff}/change-password', [StaffController::class, 'changePassword']);
-Route::post('staff/logout', [StaffController::class, 'logout']);
+Route::middleware('staff.auth')->group(function () {
+    // Staff Routes
+    Route::get('staff', [StaffController::class, 'index']);
+    Route::post('staff', [StaffController::class, 'store']);
+    Route::get('staffShow/{staff}', [StaffController::class, 'show']);
+    Route::post('staffUpdate/{staff}', [StaffController::class, 'update']);
+    Route::delete('staffDelete/{staff}', [StaffController::class, 'destroy']);
+    Route::post('staff/{staff}/change-password', [StaffController::class, 'changePassword']);
+    Route::post('staff/logout', [StaffController::class, 'logout']);
 
-// Branch Routes
-Route::get('branches', [BranchController::class, 'index']);
-Route::post('branches', [BranchController::class, 'store']);
-Route::get('branches/{branch}', [BranchController::class, 'show']);
-Route::put('branches/{branch}', [BranchController::class, 'update']);
-Route::delete('branches/{branch}', [BranchController::class, 'destroy']);
+    // Branch Routes
+    Route::get('branches', [BranchController::class, 'index']);
+    Route::post('branches', [BranchController::class, 'store']);
+    Route::get('branches/{branch}', [BranchController::class, 'show']);
+    Route::put('branches/{branch}', [BranchController::class, 'update']);
+    Route::delete('branches/{branch}', [BranchController::class, 'destroy']);
+
+    // Photo Routes
+    Route::get('photos/offline-dashboard', [PhotoController::class, 'offlineDashboard']);
+    Route::get('photos/staff', [PhotoController::class, 'staffPhotos']);
+    Route::post('photos/upload', [PhotoController::class, 'upload']);
+    Route::post('photos/{photo}/sync-status', [PhotoController::class, 'updateSyncStatus']);
+    Route::delete('photos/{photo}', [PhotoController::class, 'destroy']);
+});
