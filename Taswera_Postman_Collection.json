@@ -1,0 +1,256 @@
+{
+	"info": {
+		"_postman_id": "random-uuid",
+		"name": "Taswera API",
+		"description": "Collection for testing Taswera API endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Public Routes",
+			"item": [
+				{
+					"name": "Validate User Access",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"barcode\": \"your_barcode_here\",\n    \"phone_number\": \"your_phone_number_here\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/validate-access",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "validate-access"]
+						},
+						"description": "Validate user access using barcode and phone number"
+					}
+				},
+				{
+					"name": "Get Photos",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/photos?barcode=your_barcode_here&phone_number=your_phone_number_here",
+							"host": ["{{base_url}}"],
+							"path": ["api", "photos"],
+							"query": [
+								{
+									"key": "barcode",
+									"value": "your_barcode_here"
+								},
+								{
+									"key": "phone_number",
+									"value": "your_phone_number_here"
+								}
+							]
+						},
+						"description": "Get photos for a user using barcode and phone number"
+					}
+				},
+				{
+					"name": "Staff Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"staff@example.com\",\n    \"password\": \"your_password_here\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/staff/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "staff", "login"]
+						},
+						"description": "Login for staff members"
+					}
+				}
+			]
+		},
+		{
+			"name": "Staff Routes",
+			"item": [
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone_number\": \"your_phone_number_here\",\n    \"branch_id\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "register"]
+						},
+						"description": "Register a new user (Staff only)"
+					}
+				},
+				{
+					"name": "Upload Photo",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "barcode",
+									"value": "your_barcode_here",
+									"type": "text"
+								},
+								{
+									"key": "branch_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "photo",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/photos/upload",
+							"host": ["{{base_url}}"],
+							"path": ["api", "photos", "upload"]
+						},
+						"description": "Upload a photo for a user (Staff only)"
+					}
+				},
+				{
+					"name": "Get All Staff",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/staff",
+							"host": ["{{base_url}}"],
+							"path": ["api", "staff"],
+							"query": [
+								{
+									"key": "branch_id",
+									"value": "1",
+									"description": "Optional branch filter",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Get all staff members (Staff only)"
+					}
+				},
+				{
+					"name": "Get Staff Photos",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/staff/:staffId/photos",
+							"host": ["{{base_url}}"],
+							"path": ["api", "staff", ":staffId", "photos"],
+							"variable": [
+								{
+									"key": "staffId",
+									"value": "1"
+								}
+							]
+						},
+						"description": "Get photos uploaded by a specific staff member (Staff only)"
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "staff_token",
+			"value": "your_staff_token_here",
+			"type": "string"
+		}
+	]
+} 

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('file_path'); // Filename prefixed with user's 8-digit barcode
             $table->string('original_filename')->nullable();
-            $table->unsignedBigInteger('uploaded_by'); // Staff ID
+            $table->unsignedBigInteger('uploaded_by')->nullable(); // Staff ID, nullable
             $table->foreign('uploaded_by')->references('id')->on('staff')->onDelete('set null');
             $table->unsignedBigInteger('branch_id');
             $table->foreign('branch_id')->references('id')->on('branches');
@@ -33,4 +33,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('photos');
     }
-}; 
+};
