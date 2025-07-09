@@ -1,0 +1,62 @@
+<?php
+
+namespace App\Services\BranchManager;
+
+use App\Models\BranchManager;
+use App\Models\Staff;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Hash;
+
+class BranchManagerService implements BranchManagerServiceInterface
+{
+    /**
+     * Authenticate a branch manager.
+     */
+    public function authenticate(string $email, string $password): ?BranchManager
+    {
+        $manager = BranchManager::where('email', $email)->first();
+
+        if (!$manager || !Hash::check($password, $manager->password)) {
+            return null;
+        }
+
+        return $manager;
+    }
+
+    /**
+     * Get branch staff members.
+     */
+    public function getBranchStaff(BranchManager $manager): Collection
+    {
+        return Staff::where('branch_id', $manager->branch_id)
+            ->with('branch')
+            ->get();
+    }
+
+    /**
+     * Get branch information.
+     */
+    public function getBranchInfo(BranchManager $manager): array
+    {
+        $branch = $manager->branch()->with([
+            'staff',
+            'photos' => function ($query) {
+                $query->latest()->take(5);
+            }
+        ])->first();
+
+        return [
+            'branch' => $branch,
+            'stats' => [
+                'total_staff' => $branch->staff->count(),
+                'total_photos' => $branch->photos->count(),
+                'recent_photos' => $branch->photos,
+            ],
+        ];
+    }
+
+    public function register(array $data): BranchManager
+    {
+        return BranchManager::create($data);
+    }
+} 

@@ -29,11 +29,6 @@ trait HandlesMediaUploads
         }
         $this->handleMediaUpload($model, $media, $collection);
     }
-    public function deleteMedia($model, $collection = 'default')
-    {
-        $model->clearMediaCollection($collection);
-        return true;
-    }
 
     /**
      * Upload a media file
