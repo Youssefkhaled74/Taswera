@@ -8,11 +8,6 @@ use Illuminate\Database\Eloquent\Collection;
 interface BranchManagerServiceInterface
 {
     /**
-     * Authenticate a branch manager.
-     */
-    public function authenticate(string $email, string $password): ?BranchManager;
-
-    /**
      * Get branch staff members.
      */
     public function getBranchStaff(BranchManager $manager): Collection;
@@ -23,7 +18,7 @@ interface BranchManagerServiceInterface
     public function getBranchInfo(BranchManager $manager): array;
 
     /**
-     * Register a branch manager.
+     * Register a new branch manager.
      */
     public function register(array $data): BranchManager;
 } 

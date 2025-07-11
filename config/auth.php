@@ -54,6 +54,10 @@ return [
             'provider' => 'staff',
             'hash' => false,
         ],
+        'branch-manager' => [
+            'driver' => 'sanctum',
+            'provider' => 'branch-managers',
+        ],
     ],
 
     /*
@@ -81,6 +85,10 @@ return [
         'staff' => [
             'driver' => 'eloquent',
             'model' => App\Models\Staff::class,
+        ],
+        'branch-managers' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\BranchManager::class,
         ],
 
         // 'users' => [

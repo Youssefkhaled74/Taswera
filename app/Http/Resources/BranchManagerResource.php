@@ -15,12 +15,13 @@ class BranchManagerResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'email' => $this->email,
-            'branch' => new BranchResource($this->whenLoaded('branch')),
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'id' => $this->id ?? 'N/A',
+            'name' => $this->name ?? 'N/A',
+            'email' => $this->email ?? 'N/A',
+            'phone' => $this->phone ?? 'N/A',
+            'branch' => new BranchResource($this->branch) ?? 'N/A',
+            'created_at' => $this->created_at ?? 'N/A',
+            'updated_at' => $this->updated_at ?? 'N/A',
         ];
     }
 } 

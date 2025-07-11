@@ -20,6 +20,7 @@ class BranchManager extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
         'branch_id',
     ];

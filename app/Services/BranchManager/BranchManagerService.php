@@ -10,20 +10,6 @@ use Illuminate\Support\Facades\Hash;
 class BranchManagerService implements BranchManagerServiceInterface
 {
     /**
-     * Authenticate a branch manager.
-     */
-    public function authenticate(string $email, string $password): ?BranchManager
-    {
-        $manager = BranchManager::where('email', $email)->first();
-
-        if (!$manager || !Hash::check($password, $manager->password)) {
-            return null;
-        }
-
-        return $manager;
-    }
-
-    /**
      * Get branch staff members.
      */
     public function getBranchStaff(BranchManager $manager): Collection
@@ -57,6 +43,7 @@ class BranchManagerService implements BranchManagerServiceInterface
 
     public function register(array $data): BranchManager
     {
+        $data['password'] = Hash::make($data['password']);
         return BranchManager::create($data);
     }
 } 

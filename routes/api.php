@@ -20,12 +20,14 @@ use Illuminate\Support\Facades\Route;
 
 // Public Routes
 Route::post('staff/login', [StaffController::class, 'login']);
+
+// Branch Manager Public Routes
 Route::prefix('branch-manager')->group(function () {
     Route::post('login', [BranchManagerController::class, 'login']);
     Route::post('register', [BranchManagerController::class, 'register']);
 });
 
-// Protected Routes
+// Protected Routes 
 // Route::middleware('staff.auth')->group(function () {
 //     // Staff Routes
 //     Route::get('staff', [StaffController::class, 'index']);
@@ -51,8 +53,8 @@ Route::prefix('branch-manager')->group(function () {
 //     Route::delete('photos/{photo}', [PhotoController::class, 'destroy']);
 // });
 
-// Branch Manager Routes
-Route::middleware('auth:sanctum')->prefix('branch-manager')->group(function () {
+// Branch Manager Protected Routes
+Route::middleware('auth:branch-manager')->prefix('branch-manager')->group(function () {
     Route::post('logout', [BranchManagerController::class, 'logout']);
     Route::get('branch', [BranchManagerController::class, 'getBranchInfo']);
     Route::get('staff', [BranchManagerController::class, 'getBranchStaff']);
