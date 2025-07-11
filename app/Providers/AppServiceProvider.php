@@ -13,6 +13,37 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Bind interfaces to implementations
+        $this->app->bind(
+            \App\Services\Photo\PhotoServiceInterface::class,
+            \App\Services\Photo\PhotoService::class
+        );
+
+        $this->app->bind(
+            \App\Repositories\Photo\PhotoRepositoryInterface::class,
+            \App\Repositories\Photo\PhotoRepository::class
+        );
+
+        $this->app->bind(
+            \App\Services\User\UserServiceInterface::class,
+            \App\Services\User\UserService::class
+        );
+
+        $this->app->bind(
+            \App\Services\Barcode\BarcodeServiceInterface::class,
+            \App\Services\Barcode\BarcodeService::class
+        );
+
+        $this->app->bind(
+            \App\Repositories\User\UserRepositoryInterface::class,
+            \App\Repositories\User\UserRepository::class
+        );
+
+        $this->app->bind(
+            \App\Repositories\Staff\StaffRepositoryInterface::class,
+            \App\Repositories\Staff\StaffRepository::class
+        );
+
         $this->app->bind(BranchManagerServiceInterface::class, BranchManagerService::class);
     }
 

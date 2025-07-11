@@ -24,6 +24,9 @@ class PhotoSeeder extends Seeder
             $photoCount = rand(3, 5);
             
             for ($i = 1; $i <= $photoCount; $i++) {
+                // Randomly set some photos as ready_to_print (30% chance)
+                $status = rand(1, 100) <= 30 ? 'ready_to_print' : 'pending';
+                
                 Photo::create([
                     'user_id' => $user->id,
                     'file_path' => "photos/{$user->branch_id}/" . date('Y/m/d') . "/{$barcodePrefix}/{$barcodePrefix}_photo{$i}.jpg",
@@ -32,6 +35,7 @@ class PhotoSeeder extends Seeder
                     'branch_id' => $user->branch_id,
                     'is_edited' => false,
                     'thumbnail_path' => "photos/{$user->branch_id}/" . date('Y/m/d') . "/{$barcodePrefix}/thumbnails/{$barcodePrefix}_photo{$i}_thumb.jpg",
+                    'status' => $status,
                 ]);
             }
         }

@@ -55,4 +55,12 @@ interface UserRepositoryInterface
      * @return bool
      */
     public function updateLastVisit(int $userId): bool;
+
+    /**
+     * Find a user by barcode prefix (first 8 digits)
+     * 
+     * @param string $prefix
+     * @return User|null
+     */
+    public function findByBarcodePrefix(string $prefix): ?User;
 } 

@@ -2,12 +2,30 @@
 
 namespace App\Services\Photo;
 
+use Illuminate\Http\UploadedFile;
 use App\Models\Photo;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Http\UploadedFile;
 
 interface PhotoServiceInterface
 {
+    /**
+     * Upload a photo and assign it to a user
+     * 
+     * @param UploadedFile $photo
+     * @param int $userId
+     * @param int $staffId
+     * @param int $branchId
+     * @param string $barcodePrefix
+     * @return Photo|null
+     */
+    public function uploadPhoto(
+        UploadedFile $photo,
+        int $userId,
+        int $staffId,
+        int $branchId,
+        string $barcodePrefix
+    ): ?Photo;
+
     /**
      * Upload a photo for a user by barcode
      * 

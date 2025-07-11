@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             FrameSeeder::class,       // Then frames
             FilterSeeder::class,      // Then filters
             PhotoSeeder::class,       // Then photos
+            PhotoStatusSeeder::class, // Then update photo statuses
             OrderSeeder::class,       // Then orders
             OrderItemSeeder::class,   // Then order items
             PaymentSeeder::class,     // Then payments

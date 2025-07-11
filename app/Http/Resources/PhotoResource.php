@@ -16,7 +16,7 @@ class PhotoResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'file_path' => $this->file_path,
+            'file_path' => env('APP_URL') . $this->file_path,
             'status' => $this->status,
             'taken_by' => new StaffResource($this->whenLoaded('staff')),
             'branch' => new BranchResource($this->whenLoaded('branch')),

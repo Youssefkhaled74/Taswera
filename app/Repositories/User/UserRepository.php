@@ -89,4 +89,23 @@ class UserRepository implements UserRepositoryInterface
         $user->last_visit = now();
         return $user->save();
     }
+
+    /**
+     * Find a user by barcode prefix (first 8 digits)
+     * 
+     * @param string $prefix
+     * @return User|null
+     */
+    public function findByBarcodePrefix(string $prefix): ?User
+    {
+        // First try exact match with the prefix
+        $user = $this->model->where('barcode', $prefix)->first();
+        
+        if ($user) {
+            return $user;
+        }
+        
+        // Then try matching prefix with additional characters
+        return $this->model->where('barcode', 'like', $prefix . '%')->first();
+    }
 } 

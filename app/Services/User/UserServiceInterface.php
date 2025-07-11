@@ -32,4 +32,12 @@ interface UserServiceInterface
      * @return User|null
      */
     public function getUserByBarcode(string $barcode): ?User;
+
+    /**
+     * Get user by barcode prefix (first 8 digits)
+     * 
+     * @param string $prefix
+     * @return User|null
+     */
+    public function findUserByBarcodePrefix(string $prefix): ?User;
 } 
