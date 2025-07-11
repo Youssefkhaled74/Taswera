@@ -36,20 +36,22 @@ class PhotoService implements PhotoServiceInterface
         int $branchId,
         string $barcodePrefix
     ): ?Photo {
+        // Read the file contents before moving it
+        $fileContents = file_get_contents($photo->getRealPath());
+        
         // Generate file path without 'public' prefix
         $datePath = date('Y/m/d');
         $fileName = $barcodePrefix . '_' . time() . '_' . Str::random(5) . '.' . $photo->getClientOriginalExtension();
         $filePath = "photos/{$branchId}/{$datePath}/{$barcodePrefix}/{$fileName}";
         
         // Create directory if it doesn't exist (directly in public)
-        $directory = public_path($filePath);
-        $directory = dirname($directory);
+        $directory = public_path(dirname($filePath));
         if (!file_exists($directory)) {
             mkdir($directory, 0755, true);
         }
         
         // Store the original photo directly in public directory
-        $photo->move(dirname(public_path($filePath)), $fileName);
+        $photo->move($directory, $fileName);
         
         // Create thumbnail
         $thumbnailPath = "photos/{$branchId}/{$datePath}/{$barcodePrefix}/thumbnails/{$fileName}";
@@ -59,7 +61,7 @@ class PhotoService implements PhotoServiceInterface
         }
         
         // Create thumbnail using GD
-        $sourceImage = imagecreatefromstring(file_get_contents($photo->getRealPath()));
+        $sourceImage = imagecreatefromstring($fileContents);
         $sourceWidth = imagesx($sourceImage);
         $sourceHeight = imagesy($sourceImage);
         
