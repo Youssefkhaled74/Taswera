@@ -22,6 +22,9 @@ class Photo extends Model
         'branch_id',
         'is_edited',
         'thumbnail_path',
+        'status',
+        'sync_status',
+        'metadata',
     ];
 
     /**
@@ -31,6 +34,7 @@ class Photo extends Model
      */
     protected $casts = [
         'is_edited' => 'boolean',
+        'metadata' => 'array',
     ];
 
     /**
@@ -39,6 +43,15 @@ class Photo extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the staff that uploaded the photo.
+     * This is an alias for the uploader relationship for backward compatibility.
+     */
+    public function staff()
+    {
+        return $this->belongsTo(Staff::class, 'uploaded_by');
     }
 
     /**

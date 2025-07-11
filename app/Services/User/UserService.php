@@ -86,19 +86,19 @@ class UserService implements UserServiceInterface
     }
 
     /**
-     * Get user by barcode prefix (first 8 digits)
+     * Find user by barcode prefix (first 8 digits)
      * 
-     * @param string $prefix
+     * @param string $barcodePrefix
      * @return User|null
      */
-    public function findUserByBarcodePrefix(string $prefix): ?User
+    public function findUserByBarcodePrefix(string $barcodePrefix): ?User
     {
-        // Validate that prefix is 8 digits
-        if (!preg_match('/^\d{8}$/', $prefix)) {
+        // Validate that the prefix is exactly 8 digits
+        if (!preg_match('/^\d{8}$/', $barcodePrefix)) {
             return null;
         }
         
-        // Find user where barcode starts with this prefix
-        return $this->userRepository->findByBarcodePrefix($prefix);
+        // Find user where barcode starts with the prefix
+        return User::where('barcode', 'like', $barcodePrefix . '%')->first();
     }
 } 

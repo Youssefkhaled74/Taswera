@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('photos', function (Blueprint $table) {
-            $table->string('status')->default('pending')->after('thumbnail_path'); // pending, ready_to_print, printed
+            $table->string('status')->default('pending')->after('thumbnail_path');
+            $table->string('sync_status')->default('pending')->after('status');
+            $table->json('metadata')->nullable()->after('sync_status');
         });
     }
 
@@ -22,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('photos', function (Blueprint $table) {
-            $table->dropColumn('status');
+            $table->dropColumn(['status', 'sync_status', 'metadata']);
         });
     }
 }; 

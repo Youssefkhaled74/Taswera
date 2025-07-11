@@ -75,29 +75,36 @@ class PhotoController extends Controller
      *
      * @throws ValidationException
      */
-    public function upload(Request $request): JsonResponse
+    public function uploadPhotos(Request $request): JsonResponse
     {
         $request->validate([
             'photos.*' => 'required|image|max:10240', // 10MB max per photo
-            'metadata' => 'nullable|json',
+            'barcode_prefix' => 'required|string|size:8', // 8-digit barcode prefix
         ]);
 
         try {
             DB::beginTransaction();
 
+            // Find user by barcode prefix
+            $user = $this->userService->findUserByBarcodePrefix($request->barcode_prefix);
+            if (!$user) {
+                return $this->errorResponse('User not found for the given barcode prefix', Response::HTTP_NOT_FOUND);
+            }
+
             $uploadedPhotos = [];
             if ($request->hasFile('photos')) {
                 foreach ($request->file('photos') as $photo) {
-                    $path = $this->uploadMedia($photo, 'photos');
+                    $uploadedPhoto = $this->photoService->uploadPhoto(
+                        $photo,
+                        $user->id,
+                        Auth::id(),
+                        Auth::user()->branch_id,
+                        $request->barcode_prefix
+                    );
                     
-                    $uploadedPhotos[] = Photo::create([
-                        'file_path' => $path,
-                        'staff_id' => Auth::id(),
-                        'branch_id' => Auth::user()->branch_id,
-                        'status' => 'pending',
-                        'sync_status' => 'pending',
-                        'metadata' => $request->input('metadata'),
-                    ]);
+                    if ($uploadedPhoto) {
+                        $uploadedPhotos[] = $uploadedPhoto;
+                    }
                 }
             }
 
@@ -110,6 +117,10 @@ class PhotoController extends Controller
             );
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Photo upload failed: ' . $e->getMessage(), [
+                'exception' => $e,
+                'request' => $request->all()
+            ]);
             return $this->errorResponse('Failed to upload photos: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -157,182 +168,82 @@ class PhotoController extends Controller
             return $this->successResponse(null, 'Photo deleted successfully');
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Photo deletion failed: ' . $e->getMessage(), [
+                'exception' => $e,
+                'photo_id' => $photo->id
+            ]);
             return $this->errorResponse('Failed to delete photo: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     /**
-     * Get all unique 8-digit barcodes from photos uploaded by a specific staff member
+     * Get ready to print barcodes
      */
-    public function getStaffUploadedBarcodes(int $staffId): JsonResponse
+    public function getReadyToPrintBarcodes(Request $request): JsonResponse
     {
-        $photos = Photo::where('uploaded_by', $staffId)->get();
-        
-        // Extract unique barcodes from file paths
-        $barcodes = $photos->map(function ($photo) {
-            return $photo->getBarcode();
-        })->unique()->values();
+        $query = Photo::select('file_path')
+            ->where('status', 'ready_to_print')
+            ->where('branch_id', Auth::user()->branch_id)
+            ->get()
+            ->map(function ($photo) {
+                return $photo->getBarcode();
+            })
+            ->unique();
 
         return $this->successResponse(
-            ['barcodes' => $barcodes],
-            'Staff uploaded barcodes retrieved successfully'
-        );
-    }
-
-    /**
-     * Get all photos associated with an 8-digit barcode prefix
-     */
-    public function getPhotosByBarcodePrefix(string $barcodePrefix): JsonResponse
-    {
-        // Validate that the input is exactly 8 digits
-        if (!preg_match('/^\d{8}$/', $barcodePrefix)) {
-            return $this->errorResponse('Invalid barcode prefix. Must be exactly 8 digits.', 400);
-        }
-
-        // Get all photos where the file path contains this barcode prefix
-        $photos = Photo::where('file_path', 'like', "%/{$barcodePrefix}/%")
-            ->with(['user', 'uploader', 'branch'])
-            ->get();
-
-        return $this->successResponse(
-            PhotoResource::collection($photos),
-            'Photos retrieved successfully'
-        );
-    }
-
-    /**
-     * Get all barcode prefixes that have photos with status 'ready_to_print'
-     */
-    public function getReadyToPrintBarcodes(): JsonResponse
-    {
-        $photos = Photo::where('status', 'ready_to_print')->get();
-        
-        // Extract unique barcodes from file paths
-        $barcodes = $photos->map(function ($photo) {
-            return $photo->getBarcode();
-        })->unique()->values();
-
-        return $this->successResponse(
-            ['barcodes' => $barcodes],
+            $query->values()->all(),
             'Ready to print barcodes retrieved successfully'
         );
     }
 
     /**
-     * Get all ready to print photos for a specific barcode prefix
+     * Get ready to print photos by barcode
      */
     public function getReadyToPrintPhotosByBarcode(string $barcodePrefix): JsonResponse
     {
-        // Validate that the input is exactly 8 digits
-        if (!preg_match('/^\d{8}$/', $barcodePrefix)) {
-            return $this->errorResponse('Invalid barcode prefix. Must be exactly 8 digits.', 400);
-        }
-
-        // Get all ready to print photos for this barcode
-        $photos = Photo::where('status', 'ready_to_print')
-            ->where('file_path', 'like', "%/{$barcodePrefix}/%")
-            ->with(['user', 'uploader', 'branch'])
+        $query = Photo::with(['staff', 'branch'])
+            ->where('status', 'ready_to_print')
+            ->where('branch_id', Auth::user()->branch_id)
+            ->where('file_path', 'like', "%{$barcodePrefix}%")
             ->get();
 
         return $this->successResponse(
-            PhotoResource::collection($photos),
+            PhotoResource::collection($query),
             'Ready to print photos retrieved successfully'
         );
     }
 
     /**
-     * Upload multiple photos and automatically assign them to users based on filename prefixes
+     * Get staff uploaded barcodes
      */
-    public function uploadPhotos(Request $request): JsonResponse
+    public function getStaffUploadedBarcodes(int $staffId): JsonResponse
     {
-        // Debug incoming request
-        Log::info('Upload request:', [
-            'has_files' => $request->hasFile('photos'),
-            'all_data' => $request->all()
-        ]);
-
-        // Validate request
-        $validator = Validator::make($request->all(), [
-            'photos' => 'required|array',
-            'photos.*' => 'required|image|mimes:jpeg,png,jpg|max:2048', // Max 2MB per photo
-        ]);
-
-        if ($validator->fails()) {
-            return $this->errorResponse('Validation failed', 422, $validator->errors());
-        }
-
-        if (!$request->hasFile('photos')) {
-            return $this->errorResponse('No photos provided', 422);
-        }
-
-        $results = [
-            'success' => [],
-            'failed' => [],
-            'invalid_prefix' => []
-        ];
-
-        // Process each uploaded photo
-        foreach ($request->file('photos') as $photo) {
-            try {
-                // Get original filename
-                $filename = $photo->getClientOriginalName();
-                Log::info('Processing photo:', ['filename' => $filename]);
-                
-                // Extract the first 8 characters as potential barcode prefix
-                $potentialPrefix = substr($filename, 0, 8);
-                
-                // Validate that the prefix is numeric and 8 digits
-                if (!preg_match('/^\d{8}$/', $potentialPrefix)) {
-                    $results['invalid_prefix'][] = [
-                        'filename' => $filename,
-                        'reason' => 'Filename must start with 8 digits'
-                    ];
-                    continue;
-                }
-
-                // Find user by barcode prefix
-                $user = $this->userService->findUserByBarcodePrefix($potentialPrefix);
-                
-                if (!$user) {
-                    $results['failed'][] = [
-                        'filename' => $filename,
-                        'reason' => 'No user found with barcode prefix: ' . $potentialPrefix
-                    ];
-                    Log::info('User not found for prefix:', ['prefix' => $potentialPrefix]);
-                    continue;
-                }
-
-                Log::info('Found user:', ['user_id' => $user->id, 'barcode' => $user->barcode]);
-
-                // Upload the photo and assign to user
-                $uploadedPhoto = $this->photoService->uploadPhoto(
-                    $photo,
-                    $user->id,
-                    1, // Default staff ID since auth is commented out
-                    1, // Default branch ID since auth is commented out
-                    $potentialPrefix
-                );
-
-                if ($uploadedPhoto) {
-                    $results['success'][] = [
-                        'filename' => $filename,
-                        'photo' => new PhotoResource($uploadedPhoto),
-                        'assigned_to' => $potentialPrefix
-                    ];
-                    Log::info('Photo uploaded successfully:', ['photo_id' => $uploadedPhoto->id]);
-                }
-            } catch (\Exception $e) {
-                Log::error('Upload failed:', ['error' => $e->getMessage()]);
-                $results['failed'][] = [
-                    'filename' => $filename,
-                    'reason' => 'Upload failed: ' . $e->getMessage()
-                ];
-            }
-        }
+        $query = Photo::select('file_path')
+            ->where('uploaded_by', $staffId)
+            ->get()
+            ->map(function ($photo) {
+                return $photo->getBarcode();
+            })
+            ->unique();
 
         return $this->successResponse(
-            $results,
-            count($results['success']) . ' photos uploaded successfully'
+            $query->values()->all(),
+            'Staff uploaded barcodes retrieved successfully'
+        );
+    }
+
+    /**
+     * Get photos by barcode prefix
+     */
+    public function getPhotosByBarcodePrefix(string $barcodePrefix): JsonResponse
+    {
+        $query = Photo::with(['staff', 'branch'])
+            ->where('file_path', 'like', "%{$barcodePrefix}%")
+            ->get();
+
+        return $this->successResponse(
+            PhotoResource::collection($query),
+            'Photos retrieved successfully'
         );
     }
 } 

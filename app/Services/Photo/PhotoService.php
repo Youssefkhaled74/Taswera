@@ -3,21 +3,15 @@
 namespace App\Services\Photo;
 
 use App\Models\Photo;
-use App\Models\User;
 use App\Repositories\Photo\PhotoRepositoryInterface;
-use App\Services\Barcode\BarcodeServiceInterface;
 use App\Services\User\UserServiceInterface;
-use App\Traits\HandlesMediaUploads;
+use App\Services\Barcode\BarcodeServiceInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Intervention\Image\Facades\Image;
 
 class PhotoService implements PhotoServiceInterface
 {
-    use HandlesMediaUploads;
-
     protected $photoRepository;
     protected $userService;
     protected $barcodeService;
@@ -30,6 +24,93 @@ class PhotoService implements PhotoServiceInterface
         $this->photoRepository = $photoRepository;
         $this->userService = $userService;
         $this->barcodeService = $barcodeService;
+    }
+
+    /**
+     * Upload a photo and assign it to a user
+     */
+    public function uploadPhoto(
+        UploadedFile $photo,
+        int $userId,
+        int $staffId,
+        int $branchId,
+        string $barcodePrefix
+    ): ?Photo {
+        // Generate file path without 'public' prefix
+        $datePath = date('Y/m/d');
+        $fileName = $barcodePrefix . '_' . time() . '_' . Str::random(5) . '.' . $photo->getClientOriginalExtension();
+        $filePath = "photos/{$branchId}/{$datePath}/{$barcodePrefix}/{$fileName}";
+        
+        // Create directory if it doesn't exist (directly in public)
+        $directory = public_path($filePath);
+        $directory = dirname($directory);
+        if (!file_exists($directory)) {
+            mkdir($directory, 0755, true);
+        }
+        
+        // Store the original photo directly in public directory
+        $photo->move(dirname(public_path($filePath)), $fileName);
+        
+        // Create thumbnail
+        $thumbnailPath = "photos/{$branchId}/{$datePath}/{$barcodePrefix}/thumbnails/{$fileName}";
+        $thumbnailDirectory = public_path(dirname($thumbnailPath));
+        if (!file_exists($thumbnailDirectory)) {
+            mkdir($thumbnailDirectory, 0755, true);
+        }
+        
+        // Create thumbnail using GD
+        $sourceImage = imagecreatefromstring(file_get_contents($photo->getRealPath()));
+        $sourceWidth = imagesx($sourceImage);
+        $sourceHeight = imagesy($sourceImage);
+        
+        // Calculate thumbnail dimensions (300x300 max)
+        $targetWidth = 300;
+        $targetHeight = 300;
+        
+        // Maintain aspect ratio
+        if ($sourceWidth > $sourceHeight) {
+            $targetHeight = floor($sourceHeight * ($targetWidth / $sourceWidth));
+        } else {
+            $targetWidth = floor($sourceWidth * ($targetHeight / $sourceHeight));
+        }
+        
+        // Create thumbnail image
+        $thumbnailImage = imagecreatetruecolor($targetWidth, $targetHeight);
+        imagecopyresampled(
+            $thumbnailImage, 
+            $sourceImage,
+            0, 0, 0, 0,
+            $targetWidth, $targetHeight,
+            $sourceWidth, $sourceHeight
+        );
+        
+        // Save thumbnail directly to public directory
+        $thumbnailFullPath = public_path($thumbnailPath);
+        switch (strtolower($photo->getClientOriginalExtension())) {
+            case 'jpg':
+            case 'jpeg':
+                imagejpeg($thumbnailImage, $thumbnailFullPath, 80);
+                break;
+            case 'png':
+                imagepng($thumbnailImage, $thumbnailFullPath, 8);
+                break;
+        }
+        
+        // Free up memory
+        imagedestroy($sourceImage);
+        imagedestroy($thumbnailImage);
+        
+        // Create photo record with paths relative to public directory
+        return $this->photoRepository->create([
+            'user_id' => $userId,
+            'file_path' => $filePath,
+            'original_filename' => $photo->getClientOriginalName(),
+            'uploaded_by' => $staffId,
+            'branch_id' => $branchId,
+            'is_edited' => false,
+            'thumbnail_path' => $thumbnailPath,
+            'status' => 'pending'
+        ]);
     }
 
     /**
@@ -83,12 +164,47 @@ class PhotoService implements PhotoServiceInterface
             mkdir($thumbnailDirectory, 0755, true);
         }
         
-        $img = Image::make($photo->getRealPath());
-        $img->fit(300, 300, function ($constraint) {
-            $constraint->aspectRatio();
-            $constraint->upsize();
-        });
-        $img->save(storage_path("app/public/{$thumbnailPath}"));
+        // Create thumbnail using GD
+        $sourceImage = imagecreatefromstring(file_get_contents($photo->getRealPath()));
+        $sourceWidth = imagesx($sourceImage);
+        $sourceHeight = imagesy($sourceImage);
+        
+        // Calculate thumbnail dimensions (300x300 max)
+        $targetWidth = 300;
+        $targetHeight = 300;
+        
+        // Maintain aspect ratio
+        if ($sourceWidth > $sourceHeight) {
+            $targetHeight = floor($sourceHeight * ($targetWidth / $sourceWidth));
+        } else {
+            $targetWidth = floor($sourceWidth * ($targetHeight / $sourceHeight));
+        }
+        
+        // Create thumbnail image
+        $thumbnailImage = imagecreatetruecolor($targetWidth, $targetHeight);
+        imagecopyresampled(
+            $thumbnailImage, 
+            $sourceImage,
+            0, 0, 0, 0,
+            $targetWidth, $targetHeight,
+            $sourceWidth, $sourceHeight
+        );
+        
+        // Save thumbnail
+        $thumbnailFullPath = storage_path("app/public/{$thumbnailPath}");
+        switch (strtolower($photo->getClientOriginalExtension())) {
+            case 'jpg':
+            case 'jpeg':
+                imagejpeg($thumbnailImage, $thumbnailFullPath, 80);
+                break;
+            case 'png':
+                imagepng($thumbnailImage, $thumbnailFullPath, 8);
+                break;
+        }
+        
+        // Free up memory
+        imagedestroy($sourceImage);
+        imagedestroy($thumbnailImage);
         
         // Create photo record
         return $this->photoRepository->create([
@@ -99,64 +215,6 @@ class PhotoService implements PhotoServiceInterface
             'branch_id' => $branchId,
             'is_edited' => false,
             'thumbnail_path' => $thumbnailPath,
-        ]);
-    }
-
-    /**
-     * Upload a photo and assign it to a user
-     * 
-     * @param UploadedFile $photo
-     * @param int $userId
-     * @param int $staffId
-     * @param int $branchId
-     * @param string $barcodePrefix
-     * @return Photo|null
-     */
-    public function uploadPhoto(
-        UploadedFile $photo,
-        int $userId,
-        int $staffId,
-        int $branchId,
-        string $barcodePrefix
-    ): ?Photo {
-        // Generate file path
-        $datePath = date('Y/m/d');
-        $fileName = $barcodePrefix . '_' . time() . '_' . Str::random(5) . '.' . $photo->getClientOriginalExtension();
-        $filePath = "photos/{$branchId}/{$datePath}/{$barcodePrefix}/{$fileName}";
-        
-        // Create directory if it doesn't exist
-        $directory = dirname(storage_path("app/public/{$filePath}"));
-        if (!file_exists($directory)) {
-            mkdir($directory, 0755, true);
-        }
-        
-        // Store the original photo
-        $photo->storeAs('public', $filePath);
-        
-        // Create thumbnail
-        $thumbnailPath = "photos/{$branchId}/{$datePath}/{$barcodePrefix}/thumbnails/{$fileName}";
-        $thumbnailDirectory = dirname(storage_path("app/public/{$thumbnailPath}"));
-        if (!file_exists($thumbnailDirectory)) {
-            mkdir($thumbnailDirectory, 0755, true);
-        }
-        
-        $img = Image::make($photo->getRealPath());
-        $img->fit(300, 300, function ($constraint) {
-            $constraint->aspectRatio();
-            $constraint->upsize();
-        });
-        $img->save(storage_path("app/public/{$thumbnailPath}"));
-        
-        // Create photo record
-        return $this->photoRepository->create([
-            'user_id' => $userId,
-            'file_path' => $filePath,
-            'original_filename' => $photo->getClientOriginalName(),
-            'uploaded_by' => $staffId,
-            'branch_id' => $branchId,
-            'is_edited' => false,
-            'thumbnail_path' => $thumbnailPath,
-            'status' => 'pending'
         ]);
     }
 

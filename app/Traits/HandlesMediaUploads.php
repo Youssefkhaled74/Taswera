@@ -35,9 +35,21 @@ trait HandlesMediaUploads
      */
     protected function uploadMedia(UploadedFile $file, string $directory): string
     {
+        // Generate file path
+        $datePath = date('Y/m/d');
         $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-        $path = $file->storeAs("public/{$directory}", $filename);
-        return str_replace('public/', '', $path);
+        $relativePath = "{$directory}/{$datePath}/{$filename}";
+        
+        // Create directory if it doesn't exist
+        $fullDirectory = public_path(dirname($relativePath));
+        if (!file_exists($fullDirectory)) {
+            mkdir($fullDirectory, 0755, true);
+        }
+        
+        // Move the file to the public directory
+        $file->move($fullDirectory, $filename);
+        
+        return $relativePath;
     }
 
     /**
@@ -49,6 +61,11 @@ trait HandlesMediaUploads
             return false;
         }
         
-        return Storage::delete('public/' . $path);
+        $fullPath = public_path($path);
+        if (file_exists($fullPath)) {
+            return unlink($fullPath);
+        }
+        
+        return false;
     }
 }
