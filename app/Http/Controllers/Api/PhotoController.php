@@ -17,6 +17,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use App\Http\Resources\InvoiceResource;
+use App\Models\Invoice;
+use App\Services\Invoice\InvoiceServiceInterface;
 
 class PhotoController extends Controller
 {
@@ -27,7 +30,8 @@ class PhotoController extends Controller
 
     public function __construct(
         PhotoServiceInterface $photoService,
-        UserServiceInterface $userService
+        UserServiceInterface $userService,
+        private readonly InvoiceServiceInterface $invoiceService
     ) {
         $this->photoService = $photoService;
         $this->userService = $userService;
@@ -162,6 +166,90 @@ class PhotoController extends Controller
     }
 
     /**
+     * Confirm print and generate invoice
+     */
+    public function confirmPrint(Request $request, string $barcodePrefix): JsonResponse
+    {
+        $request->validate([
+            'invoice_method' => 'required|in:whatsapp,print,both'
+        ]);
+
+        try {
+            $invoice = $this->invoiceService->createInvoice($barcodePrefix, $request->invoice_method);
+            
+            return $this->successResponse(
+                new InvoiceResource($invoice->load(['user', 'branch', 'staff'])),
+                'Print confirmation successful and invoice generated'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to process print confirmation: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Get invoice by barcode prefix
+     */
+    public function getInvoice(string $barcodePrefix): JsonResponse
+    {
+        try {
+            $invoice = $this->invoiceService->getInvoiceByBarcode($barcodePrefix);
+            
+            if (!$invoice) {
+                return $this->errorResponse('Invoice not found', Response::HTTP_NOT_FOUND);
+            }
+
+            return $this->successResponse(
+                new InvoiceResource($invoice->load(['user', 'branch', 'staff'])),
+                'Invoice retrieved successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve invoice: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Get all active invoices
+     */
+    public function getActiveInvoices(): JsonResponse
+    {
+        try {
+            $invoices = $this->invoiceService->getActiveInvoices();
+            
+            return $this->successResponse(
+                InvoiceResource::collection($invoices),
+                'Active invoices retrieved successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to retrieve invoices: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Update invoice status
+     */
+    public function updateInvoiceStatus(Request $request, Invoice $invoice): JsonResponse
+    {
+        $request->validate([
+            'status' => 'required|in:active,cancelled,completed'
+        ]);
+
+        try {
+            $updated = $this->invoiceService->updateInvoiceStatus($invoice, $request->status);
+            
+            if (!$updated) {
+                return $this->errorResponse('Failed to update invoice status', Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            return $this->successResponse(
+                new InvoiceResource($invoice->fresh()->load(['user', 'branch', 'staff'])),
+                'Invoice status updated successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse('Failed to update invoice status: ' . $e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
      * Get all unique 8-digit barcodes from photos uploaded by a specific staff member
      */
     public function getStaffUploadedBarcodes(int $staffId): JsonResponse
@@ -234,10 +322,24 @@ class PhotoController extends Controller
             ->with(['user', 'uploader', 'branch'])
             ->get();
 
-        return $this->successResponse(
-            PhotoResource::collection($photos),
-            'Ready to print photos retrieved successfully'
-        );
+        // Calculate invoice data
+        $numPhotos = $photos->count();
+        $pricePerPhoto = 10.00; // 10 EGP per photo
+        $amount = $numPhotos * $pricePerPhoto;
+        $taxRate = 0.05; // 5%
+        $taxAmount = $amount * $taxRate;
+        $totalAmount = $amount + $taxAmount;
+
+        return $this->successResponse([
+            'photos' => PhotoResource::collection($photos),
+            'invoice_summary' => [
+                'num_photos' => $numPhotos,
+                'amount' => number_format($amount, 2) . ' EGP',
+                'tax_rate' => '5%',
+                'tax_amount' => number_format($taxAmount, 2) . ' EGP',
+                'total_amount' => number_format($totalAmount, 2) . ' EGP',
+            ]
+        ], 'Ready to print photos retrieved successfully');
     }
 
     /**
@@ -334,5 +436,58 @@ class PhotoController extends Controller
             $results,
             count($results['success']) . ' photos uploaded successfully'
         );
+    }
+
+    public function getPrintedBarcodes(): JsonResponse
+    {
+        // Get unique barcode prefixes from file paths where status is 'printed'
+        $barcodePrefixes = Photo::where('status', 'printed')
+            ->get()
+            ->map(function ($photo) {
+                // Extract the 8-digit prefix from the file path
+                preg_match('/\/(\d{8})\//', $photo->file_path, $matches);
+                return $matches[1] ?? null;
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        return $this->successResponse(
+            $barcodePrefixes,
+            'Printed photo barcode prefixes retrieved successfully'
+        );
+    }
+
+    public function getPrintedPhotosByBarcode(string $barcodePrefix): JsonResponse
+    {
+        // Validate that the input is exactly 8 digits
+        if (!preg_match('/^\d{8}$/', $barcodePrefix)) {
+            return $this->errorResponse('Invalid barcode prefix. Must be exactly 8 digits.', 400);
+        }
+
+        // Get all printed photos for this barcode
+        $photos = Photo::where('status', 'printed')
+            ->where('file_path', 'like', "%/{$barcodePrefix}/%")
+            ->with(['user', 'uploader', 'branch'])
+            ->get();
+
+        // Calculate invoice data
+        $numPhotos = $photos->count();
+        $pricePerPhoto = 10.00; // 10 EGP per photo
+        $amount = $numPhotos * $pricePerPhoto;
+        $taxRate = 0.05; // 5%
+        $taxAmount = $amount * $taxRate;
+        $totalAmount = $amount + $taxAmount;
+
+        return $this->successResponse([
+            'photos' => PhotoResource::collection($photos),
+            'invoice_summary' => [
+                'num_photos' => $numPhotos,
+                'amount' => number_format($amount, 2) . ' EGP',
+                'tax_rate' => '5%',
+                'tax_amount' => number_format($taxAmount, 2) . ' EGP',
+                'total_amount' => number_format($totalAmount, 2) . ' EGP',
+            ]
+        ], 'Printed photos retrieved successfully');
     }
 } 

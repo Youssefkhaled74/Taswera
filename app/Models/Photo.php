@@ -24,7 +24,7 @@ class Photo extends Model
         'thumbnail_path',
         'status',
         'sync_status',
-        'metadata',
+        'metadata'
     ];
 
     /**
@@ -79,13 +79,13 @@ class Photo extends Model
     }
 
     /**
-     * Get the barcode from the file path.
+     * Extract the barcode from the file path
      */
-    public function getBarcode()
+    public function getBarcode(): ?string
     {
-        // Extract the 8-digit barcode from the file path
-        $filename = basename($this->file_path);
-        $parts = explode('_', $filename);
-        return $parts[0];
+        if (preg_match('/\/(\d{8})\//', $this->file_path, $matches)) {
+            return $matches[1];
+        }
+        return null;
     }
 } 

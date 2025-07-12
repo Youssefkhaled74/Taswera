@@ -45,6 +45,17 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(BranchManagerServiceInterface::class, BranchManagerService::class);
+        
+        // Invoice bindings
+        $this->app->bind(
+            \App\Repositories\Invoice\InvoiceRepositoryInterface::class,
+            \App\Repositories\Invoice\InvoiceRepository::class
+        );
+        
+        $this->app->bind(
+            \App\Services\Invoice\InvoiceServiceInterface::class,
+            \App\Services\Invoice\InvoiceService::class
+        );
     }
 
     /**
