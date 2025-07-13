@@ -5,9 +5,11 @@ namespace App\Repositories\UserInterface;
 use App\Models\User;
 use App\Models\Photo;
 use App\Models\Package;
+use App\Models\PrintRequest;
 use App\Http\Resources\PhotoResource;
 use App\Http\Resources\PackageResource;
 use App\Http\Resources\BranchResource;
+use App\Http\Resources\PrintRequestResource;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -125,5 +127,81 @@ class UserInterfaceRepository implements UserInterfaceRepositoryInterface
             'message' => 'Photo uploaded successfully',
             'photo' => new PhotoResource($photo)
         ];
+    }
+
+    /**
+     * Select photos for printing and create print request
+     *
+     * @param string $barcode
+     * @param string $phoneNumber
+     * @param array $data
+     * @return array
+     */
+    public function selectPhotosForPrinting(string $barcode, string $phoneNumber, array $data): array
+    {
+        // Start transaction
+        return DB::transaction(function () use ($barcode, $phoneNumber, $data) {
+            // Get user
+            $user = User::where('barcode', 'LIKE', $barcode . '%')
+                ->where('phone_number', $phoneNumber)
+                ->first();
+
+            if (!$user) {
+                return [];
+            }
+
+            // Get and validate photos
+            $photos = Photo::whereIn('id', $data['photo_ids'])
+                ->where('user_id', $user->id)
+                ->get();
+
+            if ($photos->count() !== count($data['photo_ids'])) {
+                throw new \Exception('Invalid photo selection');
+            }
+
+            // Validate package if provided
+            $packageId = $data['package_id'] ?? null;
+            if ($packageId) {
+                $package = Package::find($packageId);
+                if (!$package || !$package->is_active || $package->branch_id !== $user->branch_id) {
+                    throw new \Exception('Invalid package selection');
+                }
+            }
+
+            // Create print request
+            $printRequest = PrintRequest::create([
+                'user_id' => $user->id,
+                'branch_id' => $user->branch_id,
+                'barcode_prefix' => substr($user->barcode, 0, 8),
+                'payment_method' => $data['payment_method'],
+                'package_id' => $packageId,
+                'status' => 'pending',
+                'metadata' => [
+                    'created_from' => 'user_interface',
+                    'num_photos' => $photos->count()
+                ]
+            ]);
+
+            // Attach photos to print request
+            $printRequest->photos()->attach($photos->pluck('id'));
+
+            // Update photos status
+            $photos->each(function ($photo) {
+                $photo->update(['status' => 'ready_to_print']);
+            });
+
+            // Load relationships
+            $printRequest->load(['user', 'branch', 'package', 'photos']);
+
+            return [
+                'print_request' => new PrintRequestResource($printRequest),
+                'photos' => PhotoResource::collection($photos->fresh()),
+                'summary' => [
+                    'num_photos' => $photos->count(),
+                    'payment_method' => $data['payment_method'],
+                    'package_id' => $packageId
+                ]
+            ];
+        });
     }
 } 

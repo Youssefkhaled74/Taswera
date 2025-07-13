@@ -48,4 +48,17 @@ class UserInterfaceService implements UserInterfaceServiceInterface
     {
         return $this->userInterfaceRepository->addUserPhoto($barcode, $phoneNumber, $photoData);
     }
+
+    /**
+     * Select photos for printing and create invoice
+     *
+     * @param string $barcode
+     * @param string $phoneNumber
+     * @param array $data
+     * @return array
+     */
+    public function selectPhotosForPrinting(string $barcode, string $phoneNumber, array $data): array
+    {
+        return $this->userInterfaceRepository->selectPhotosForPrinting($barcode, $phoneNumber, $data);
+    }
 } 

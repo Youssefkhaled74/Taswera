@@ -7,6 +7,7 @@ use App\Services\UserInterface\UserInterfaceServiceInterface;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\Rule;
 
 class UserInterfaceController extends Controller
 {
@@ -81,5 +82,43 @@ class UserInterfaceController extends Controller
         }
 
         return $this->successResponse($result, 'Photo uploaded successfully');
+    }
+
+    /**
+     * Select photos for printing and create print request
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function selectPhotosForPrinting(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'barcode' => 'required|string|min:8',
+            'phone_number' => 'required|string',
+            'photo_ids' => 'required|array|min:1',
+            'photo_ids.*' => 'required|integer|exists:photos,id',
+            'package_id' => 'nullable|integer|exists:packages,id',
+            'payment_method' => ['required', Rule::in(['cash', 'instaPay', 'creditCard'])]
+        ]);
+
+        try {
+            $result = $this->userInterfaceService->selectPhotosForPrinting(
+                $validated['barcode'],
+                $validated['phone_number'],
+                [
+                    'photo_ids' => $validated['photo_ids'],
+                    'package_id' => $validated['package_id'] ?? null,
+                    'payment_method' => $validated['payment_method']
+                ]
+            );
+
+            if (empty($result)) {
+                return $this->errorResponse('User not found', 404);
+            }
+
+            return $this->successResponse($result, 'Print request created successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 400);
+        }
     }
 } 

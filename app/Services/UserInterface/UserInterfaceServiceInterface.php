@@ -30,4 +30,14 @@ interface UserInterfaceServiceInterface
      * @return array
      */
     public function addUserPhoto(string $barcode, string $phoneNumber, array $photoData): array;
+
+    /**
+     * Select photos for printing and create invoice
+     *
+     * @param string $barcode
+     * @param string $phoneNumber
+     * @param array $data
+     * @return array
+     */
+    public function selectPhotosForPrinting(string $barcode, string $phoneNumber, array $data): array;
 } 

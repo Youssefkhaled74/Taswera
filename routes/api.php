@@ -24,6 +24,7 @@ use Illuminate\Http\Request;
 Route::prefix('user-interface')->group(function () {
     Route::post('get-photos', [UserInterfaceController::class, 'getUserPhotos']);
     Route::post('add-photo', [UserInterfaceController::class, 'addUserPhoto']);
+    Route::post('select-photos', [UserInterfaceController::class, 'selectPhotosForPrinting']);
     Route::get('branches/{branchId}/packages', [UserInterfaceController::class, 'getPackages']);
 });
 
