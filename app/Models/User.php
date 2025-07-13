@@ -21,6 +21,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'barcode',
+        'phone_number',
+        'branch_id'
     ];
 
     /**
@@ -44,5 +47,13 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Get the branch that the user belongs to.
+     */
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

@@ -24,4 +24,28 @@ class UserInterfaceService implements UserInterfaceServiceInterface
     {
         return $this->userInterfaceRepository->getUserPhotos($barcode, $phoneNumber);
     }
+
+    /**
+     * Get all available packages for a specific branch
+     *
+     * @param int $branchId
+     * @return array
+     */
+    public function getPackages(int $branchId): array
+    {
+        return $this->userInterfaceRepository->getPackages($branchId);
+    }
+
+    /**
+     * Add a new photo to user's collection
+     *
+     * @param string $barcode
+     * @param string $phoneNumber
+     * @param array $photoData
+     * @return array
+     */
+    public function addUserPhoto(string $barcode, string $phoneNumber, array $photoData): array
+    {
+        return $this->userInterfaceRepository->addUserPhoto($barcode, $phoneNumber, $photoData);
+    }
 } 
