@@ -322,24 +322,10 @@ class PhotoController extends Controller
             ->with(['user', 'uploader', 'branch'])
             ->get();
 
-        // Calculate invoice data
-        $numPhotos = $photos->count();
-        $pricePerPhoto = 10.00; // 10 EGP per photo
-        $amount = $numPhotos * $pricePerPhoto;
-        $taxRate = 0.05; // 5%
-        $taxAmount = $amount * $taxRate;
-        $totalAmount = $amount + $taxAmount;
-
-        return $this->successResponse([
-            'photos' => PhotoResource::collection($photos),
-            'invoice_summary' => [
-                'num_photos' => $numPhotos,
-                'amount' => number_format($amount, 2) . ' EGP',
-                'tax_rate' => '5%',
-                'tax_amount' => number_format($taxAmount, 2) . ' EGP',
-                'total_amount' => number_format($totalAmount, 2) . ' EGP',
-            ]
-        ], 'Ready to print photos retrieved successfully');
+        return $this->successResponse(
+            PhotoResource::collection($photos),
+            'Ready to print photos retrieved successfully'
+        );
     }
 
     /**
@@ -436,58 +422,5 @@ class PhotoController extends Controller
             $results,
             count($results['success']) . ' photos uploaded successfully'
         );
-    }
-
-    public function getPrintedBarcodes(): JsonResponse
-    {
-        // Get unique barcode prefixes from file paths where status is 'printed'
-        $barcodePrefixes = Photo::where('status', 'printed')
-            ->get()
-            ->map(function ($photo) {
-                // Extract the 8-digit prefix from the file path
-                preg_match('/\/(\d{8})\//', $photo->file_path, $matches);
-                return $matches[1] ?? null;
-            })
-            ->filter()
-            ->unique()
-            ->values();
-
-        return $this->successResponse(
-            $barcodePrefixes,
-            'Printed photo barcode prefixes retrieved successfully'
-        );
-    }
-
-    public function getPrintedPhotosByBarcode(string $barcodePrefix): JsonResponse
-    {
-        // Validate that the input is exactly 8 digits
-        if (!preg_match('/^\d{8}$/', $barcodePrefix)) {
-            return $this->errorResponse('Invalid barcode prefix. Must be exactly 8 digits.', 400);
-        }
-
-        // Get all printed photos for this barcode
-        $photos = Photo::where('status', 'printed')
-            ->where('file_path', 'like', "%/{$barcodePrefix}/%")
-            ->with(['user', 'uploader', 'branch'])
-            ->get();
-
-        // Calculate invoice data
-        $numPhotos = $photos->count();
-        $pricePerPhoto = 10.00; // 10 EGP per photo
-        $amount = $numPhotos * $pricePerPhoto;
-        $taxRate = 0.05; // 5%
-        $taxAmount = $amount * $taxRate;
-        $totalAmount = $amount + $taxAmount;
-
-        return $this->successResponse([
-            'photos' => PhotoResource::collection($photos),
-            'invoice_summary' => [
-                'num_photos' => $numPhotos,
-                'amount' => number_format($amount, 2) . ' EGP',
-                'tax_rate' => '5%',
-                'tax_amount' => number_format($taxAmount, 2) . ' EGP',
-                'total_amount' => number_format($totalAmount, 2) . ' EGP',
-            ]
-        ], 'Printed photos retrieved successfully');
     }
 } 

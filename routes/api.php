@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\PhotoController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\UserInterfaceController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
@@ -20,6 +21,10 @@ use Illuminate\Http\Request;
 |
 */
 
+Route::prefix('user-interface')->group(function () {
+    Route::post('get-photos', [UserInterfaceController::class, 'getUserPhotos']);
+});
+
 // Public Routes
 Route::post('staff/login', [StaffController::class, 'login']);
 
@@ -32,13 +37,13 @@ Route::prefix('branch-manager')->group(function () {
 // Protected Routes 
 Route::prefix('staff')->group(function () {
     // Staff Routes
-    Route::get('staff', [StaffController::class, 'index']);
-    Route::post('staff', [StaffController::class, 'store']);
+    Route::get('/', [StaffController::class, 'index']);
+    Route::post('/', [StaffController::class, 'store']);
     Route::get('staffShow/{staff}', [StaffController::class, 'show']);
     Route::post('staffUpdate/{staff}', [StaffController::class, 'update']);
     Route::delete('staffDelete/{staff}', [StaffController::class, 'destroy']);
-    Route::post('staff/{staff}/change-password', [StaffController::class, 'changePassword']);
-    Route::post('staff/logout', [StaffController::class, 'logout']);
+    Route::post('/{staff}/change-password', [StaffController::class, 'changePassword']);
+    Route::post('/logout', [StaffController::class, 'logout']);
     
     // Branch Routes
     Route::get('branches', [BranchController::class, 'index']);

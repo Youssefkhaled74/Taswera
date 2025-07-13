@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
-use App\Services\BranchManager\BranchManagerService;
-use App\Services\BranchManager\BranchManagerServiceInterface;
 use Illuminate\Support\ServiceProvider;
+use App\Services\UserInterface\UserInterfaceService;
+use App\Services\UserInterface\UserInterfaceServiceInterface;
+use App\Repositories\UserInterface\UserInterfaceRepository;
+use App\Repositories\UserInterface\UserInterfaceRepositoryInterface;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -56,6 +58,10 @@ class AppServiceProvider extends ServiceProvider
             \App\Services\Invoice\InvoiceServiceInterface::class,
             \App\Services\Invoice\InvoiceService::class
         );
+        
+        // User Interface bindings
+        $this->app->bind(UserInterfaceServiceInterface::class, UserInterfaceService::class);
+        $this->app->bind(UserInterfaceRepositoryInterface::class, UserInterfaceRepository::class);
     }
 
     /**
