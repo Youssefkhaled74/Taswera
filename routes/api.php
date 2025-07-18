@@ -89,3 +89,15 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::get('invoices/{barcodePrefix}', [InvoiceController::class, 'show']);
     Route::put('invoices/{invoice}', [InvoiceController::class, 'update']);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Online Dashboard Routes
+|--------------------------------------------------------------------------
+*/
+Route::prefix('onlinedashboard')->group(function () {
+    Route::prefix('admin')->group(function () {
+        Route::post('register', [App\Http\Controllers\Api\OnlineDashboard\AdminController::class, 'register']);
+        Route::post('login', [App\Http\Controllers\Api\OnlineDashboard\AdminController::class, 'login']);
+    });
+});
