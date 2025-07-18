@@ -44,5 +44,18 @@ class Admin extends Authenticatable
         'password' => 'hashed',
         'is_super_admin' => 'boolean',
         'permissions' => 'array',
+        'email_verified_at' => 'datetime',
     ];
+
+    /**
+     * Check if the admin has a specific permission
+     */
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->is_super_admin) {
+            return true;
+        }
+
+        return in_array($permission, $this->permissions ?? []);
+    }
 } 

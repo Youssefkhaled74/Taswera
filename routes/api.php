@@ -97,7 +97,17 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
 */
 Route::prefix('onlinedashboard')->group(function () {
     Route::prefix('admin')->group(function () {
+        // Public routes
         Route::post('register', [App\Http\Controllers\Api\OnlineDashboard\AdminController::class, 'register']);
         Route::post('login', [App\Http\Controllers\Api\OnlineDashboard\AdminController::class, 'login']);
+
+        // Protected routes
+        Route::middleware(['auth:admin', 'auth.admin'])->group(function () {
+            Route::post('logout', [App\Http\Controllers\Api\OnlineDashboard\AdminController::class, 'logout']);
+        });
     });
+
+    // Homepage dashboard stats - protected by admin auth
+    Route::get('homepage/stats', [App\Http\Controllers\Api\OnlineDashboard\HomePageController::class, 'getDashboardStats'])
+        ->middleware(['auth:admin']);
 });

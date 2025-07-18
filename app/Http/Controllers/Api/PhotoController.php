@@ -423,4 +423,58 @@ class PhotoController extends Controller
             count($results['success']) . ' photos uploaded successfully'
         );
     }
+
+    /**
+     * Get all barcode prefixes that have printed photos
+     */
+    public function getPrintedBarcodes(): JsonResponse
+    {
+        try {
+            $photos = Photo::where('status', 'printed')->get();
+            
+            // Extract unique barcodes from file paths
+            $barcodes = $photos->map(function ($photo) {
+                return $photo->getBarcode();
+            })->unique()->values()->filter();
+
+            return $this->successResponse(
+                ['barcodes' => $barcodes],
+                'Printed photo barcodes retrieved successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse(
+                'Failed to retrieve printed photo barcodes: ' . $e->getMessage(),
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    /**
+     * Get all printed photos for a specific barcode prefix
+     */
+    public function getPrintedPhotosByBarcode(string $barcodePrefix): JsonResponse
+    {
+        // Validate that the input is exactly 8 digits
+        if (!preg_match('/^\d{8}$/', $barcodePrefix)) {
+            return $this->errorResponse('Invalid barcode prefix. Must be exactly 8 digits.', 400);
+        }
+
+        try {
+            // Get all printed photos for this barcode
+            $photos = Photo::where('status', 'printed')
+                ->where('file_path', 'like', "%/{$barcodePrefix}/%")
+                ->with(['user', 'uploader', 'branch'])
+                ->get();
+
+            return $this->successResponse(
+                PhotoResource::collection($photos),
+                'Printed photos retrieved successfully'
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse(
+                'Failed to retrieve printed photos: ' . $e->getMessage(),
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
 } 
