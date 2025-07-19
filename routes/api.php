@@ -7,6 +7,9 @@ use App\Http\Controllers\Api\PhotoController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UserInterfaceController;
+use App\Http\Controllers\Api\OnlineDashboard\AdminController;
+use App\Http\Controllers\Api\OnlineDashboard\EmployeeController;
+use App\Http\Controllers\Api\OnlineDashboard\HomePageController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
@@ -98,16 +101,28 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
 Route::prefix('onlinedashboard')->group(function () {
     Route::prefix('admin')->group(function () {
         // Public routes
-        Route::post('register', [App\Http\Controllers\Api\OnlineDashboard\AdminController::class, 'register']);
-        Route::post('login', [App\Http\Controllers\Api\OnlineDashboard\AdminController::class, 'login']);
+        Route::post('register', [AdminController::class, 'register']);
+        Route::post('login', [AdminController::class, 'login']);
 
         // Protected routes
-        Route::middleware(['auth:admin', 'auth.admin'])->group(function () {
-            Route::post('logout', [App\Http\Controllers\Api\OnlineDashboard\AdminController::class, 'logout']);
+        Route::middleware(['auth:admin'])->group(function () {
+            Route::post('logout', [AdminController::class, 'logout']);
+            
+            // Employee management routes
+            Route::prefix('employees')->group(function () {
+                Route::get('/', [EmployeeController::class, 'getEmployees']);
+                Route::get('/photographers', [EmployeeController::class, 'getPhotographers']);
+                Route::post('/', [EmployeeController::class, '  ']);
+                Route::post('/photographer', [EmployeeController::class, 'addPhotographer']);
+                Route::put('/{employee}/toggle-status', [EmployeeController::class, 'toggleStatus']);
+                Route::put('/{employee}', [EmployeeController::class, 'updateEmployee']);
+                Route::put('/photographer/{photographer}', [EmployeeController::class, 'updatePhotographer']);
+                Route::delete('/{employee}', [EmployeeController::class, 'destroy']);
+            });
         });
     });
 
     // Homepage dashboard stats - protected by admin auth
-    Route::get('homepage/stats', [App\Http\Controllers\Api\OnlineDashboard\HomePageController::class, 'getDashboardStats'])
+    Route::get('homepage/stats', [HomePageController::class, 'getDashboardStats'])
         ->middleware(['auth:admin']);
 });

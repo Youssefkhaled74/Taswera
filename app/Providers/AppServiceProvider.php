@@ -13,6 +13,10 @@ use App\Repositories\UserInterface\UserInterfaceRepository;
 use App\Repositories\UserInterface\UserInterfaceRepositoryInterface;
 use App\Services\BranchManager\BranchManagerService;
 use App\Services\BranchManager\BranchManagerServiceInterface;
+use App\Repositories\Employee\EmployeeRepository;
+use App\Repositories\Employee\EmployeeRepositoryInterface;
+use App\Services\Employee\EmployeeService;
+use App\Services\Employee\EmployeeServiceInterface;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -72,6 +76,10 @@ class AppServiceProvider extends ServiceProvider
         // Admin bindings
         $this->app->bind(AdminRepositoryInterface::class, AdminRepository::class);
         $this->app->bind(AdminServiceInterface::class, AdminService::class);
+
+        // Employee Management
+        $this->app->bind(EmployeeRepositoryInterface::class, EmployeeRepository::class);
+        $this->app->bind(EmployeeServiceInterface::class, EmployeeService::class);
     }
 
     /**

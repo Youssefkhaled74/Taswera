@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Staff extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -22,6 +23,8 @@ class Staff extends Authenticatable
         'role',
         'branch_id',
         'api_token',
+        'phone',
+        'status',
     ];
 
     /**
@@ -41,6 +44,7 @@ class Staff extends Authenticatable
      */
     protected $casts = [
         'password' => 'hashed',
+        'status' => 'string',
     ];
 
     /**
@@ -77,10 +81,25 @@ class Staff extends Authenticatable
 
     /**
      * Get the users registered by this staff member.
-     * Note: This requires adding a 'registered_by' field to the users table.
      */
     public function registeredUsers()
     {
         return $this->hasMany(User::class, 'registered_by');
+    }
+
+    /**
+     * Scope a query to only include photographers.
+     */
+    public function scopePhotographers($query)
+    {
+        return $query->where('role', 'photographer');
+    }
+
+    /**
+     * Scope a query to exclude photographers.
+     */
+    public function scopeNonPhotographers($query)
+    {
+        return $query->where('role', '!=', 'photographer');
     }
 } 
