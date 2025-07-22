@@ -21,13 +21,23 @@ class Invoice extends Model
         'status',
         'metadata'
     ];
+    // status can be 'paid', 'unpaid', 'cancelled', etc.
+    
+
+    protected $dates = [
+        'created_at',
+        'updated_at'
+    ];
+    // Casts
+
 
     protected $casts = [
         'metadata' => 'array',
         'amount' => 'decimal:2',
         'tax_rate' => 'decimal:2',
         'tax_amount' => 'decimal:2',
-        'total_amount' => 'decimal:2'
+        'total_amount' => 'decimal:2',
+        'status' => 'string',
     ];
 
     // Relationships

@@ -1,18 +1,19 @@
 <?php
 
-use App\Http\Controllers\Api\BranchController;
-use App\Http\Controllers\Api\BranchManagerController;
-use App\Http\Controllers\Api\InvoiceController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\PhotoController;
 use App\Http\Controllers\Api\StaffController;
-use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\BranchController;
+use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\BranchManagerController;
 use App\Http\Controllers\Api\UserInterfaceController;
 use App\Http\Controllers\Api\OnlineDashboard\AdminController;
+use App\Http\Controllers\Api\OnlineDashboard\PaymentController;
 use App\Http\Controllers\Api\OnlineDashboard\EmployeeController;
 use App\Http\Controllers\Api\OnlineDashboard\HomePageController;
 use App\Http\Controllers\Api\OnlineDashboard\BranchController as OnlineDashboardBranchController;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,14 +52,14 @@ Route::prefix('staff')->group(function () {
     Route::delete('staffDelete/{staff}', [StaffController::class, 'destroy']);
     Route::post('/{staff}/change-password', [StaffController::class, 'changePassword']);
     Route::post('/logout', [StaffController::class, 'logout']);
-    
+
     // Branch Routes
     Route::get('branches', [BranchController::class, 'index']);
     Route::post('branches', [BranchController::class, 'store']);
     Route::get('branches/{branch}', [BranchController::class, 'show']);
     Route::put('branches/{branch}', [BranchController::class, 'update']);
     Route::delete('branches/{branch}', [BranchController::class, 'destroy']);
-    
+
     // Photo Routes
     Route::get('photos/offline-dashboard', [PhotoController::class, 'offlineDashboard']);
     Route::get('photos/staff', [PhotoController::class, 'staffPhotos']);
@@ -67,7 +68,7 @@ Route::prefix('staff')->group(function () {
     Route::delete('photos/{photo}', [PhotoController::class, 'destroy']);
     Route::get('photos/ready-to-print', [PhotoController::class, 'getReadyToPrintBarcodes']);
     Route::get('photos/ready-to-print/{barcodePrefix}', [PhotoController::class, 'getReadyToPrintPhotosByBarcode']);
-    
+
     // Invoice routes
     Route::post('invoices/{barcodePrefix}', [InvoiceController::class, 'store']);
     Route::get('invoices/active', [InvoiceController::class, 'index']);
@@ -86,7 +87,7 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::get('photos/ready-to-print/{barcodePrefix}', [PhotoController::class, 'getReadyToPrintPhotosByBarcode']);
     Route::get('photos/printed', [PhotoController::class, 'getPrintedBarcodes']);
     Route::get('photos/printed/{barcodePrefix}', [PhotoController::class, 'getPrintedPhotosByBarcode']);
-    
+
     // Invoice routes for branch manager
     Route::post('invoices/{barcodePrefix}', [InvoiceController::class, 'store']);
     Route::get('invoices/active', [InvoiceController::class, 'index']);
@@ -108,7 +109,7 @@ Route::prefix('onlinedashboard')->group(function () {
         // Protected routes
         Route::middleware(['auth:admin'])->group(function () {
             Route::post('logout', [AdminController::class, 'logout']);
-            
+
             // Employee management routes
             Route::prefix('employees')->group(function () {
                 Route::get('/', [EmployeeController::class, 'getEmployees']);
@@ -130,6 +131,11 @@ Route::prefix('onlinedashboard')->group(function () {
             Route::delete('/{branch}', [OnlineDashboardBranchController::class, 'destroy']);
             Route::get('/unassigned-employees', [OnlineDashboardBranchController::class, 'getUnassignedEmployees']);
             Route::get('/unassigned-photographers', [OnlineDashboardBranchController::class, 'getUnassignedPhotographers']);
+        });
+        Route::prefix('payments')->group(function () {
+            Route::get('/{branch}', [PaymentController::class, 'show']);
+            Route::get('/clients/{branch}', [PaymentController::class, 'index']);
+            Route::get('/invoices/{branch}/{user}', [PaymentController::class, 'invoices']);
         });
     });
 

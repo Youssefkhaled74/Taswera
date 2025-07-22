@@ -121,4 +121,5 @@ class UserInterfaceController extends Controller
             return $this->errorResponse($e->getMessage(), 400);
         }
     }
+    
 } 
