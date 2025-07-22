@@ -25,17 +25,17 @@ class StaffResource extends JsonResource
         );
 
         $data = [
-            'id' => $this->id,
-            'name' => $this->name,
-            'email' => $this->email,
-            'phone' => $this->phone,
-            'branch_id' => $this->branch_id,
-            'role' => $this->role,
-            'status' => $this->status,
-            'branch' => new BranchResource($this->whenLoaded('branch')),
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
-            'deleted_at' => $this->deleted_at,
+            'id' => $this->id ?? 'N/A',
+            'name' => $this->name ?? 'N/A',
+            'email' => $this->email ?? 'N/A',
+            'phone' => $this->phone ?? 'N/A',
+            'branch_id' => $this->branch_id ?? 'N/A',
+            'role' => $this->role ?? 'N/A',
+            'status' => $this->status ?? 'N/A',
+            'branch' => new BranchResource($this->whenLoaded('branch')) ?? 'N/A',
+            'created_at' => $this->created_at ??  'N/A',
+            'updated_at' => $this->updated_at ?? 'N/A',
+            'deleted_at' => $this->deleted_at ?? 'N/A',
         ];
 
         if ($this->role === 'photographer') {

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\UserInterfaceController;
 use App\Http\Controllers\Api\OnlineDashboard\AdminController;
 use App\Http\Controllers\Api\OnlineDashboard\EmployeeController;
 use App\Http\Controllers\Api\OnlineDashboard\HomePageController;
+use App\Http\Controllers\Api\OnlineDashboard\BranchController as OnlineDashboardBranchController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
@@ -112,13 +113,23 @@ Route::prefix('onlinedashboard')->group(function () {
             Route::prefix('employees')->group(function () {
                 Route::get('/', [EmployeeController::class, 'getEmployees']);
                 Route::get('/photographers', [EmployeeController::class, 'getPhotographers']);
-                Route::post('/', [EmployeeController::class, '  ']);
+                Route::post('/', [EmployeeController::class, 'addEmployee']);
                 Route::post('/photographer', [EmployeeController::class, 'addPhotographer']);
                 Route::put('/{employee}/toggle-status', [EmployeeController::class, 'toggleStatus']);
                 Route::put('/{employee}', [EmployeeController::class, 'updateEmployee']);
                 Route::put('/photographer/{photographer}', [EmployeeController::class, 'updatePhotographer']);
                 Route::delete('/{employee}', [EmployeeController::class, 'destroy']);
             });
+        });
+        // Branchs managment routes 
+        Route::prefix('branches')->group(function () {
+            Route::get('/', [OnlineDashboardBranchController::class, 'index']);
+            Route::post('/', [OnlineDashboardBranchController::class, 'store']);
+            Route::get('/{branch}', [OnlineDashboardBranchController::class, 'show']);
+            Route::put('/{branch}', [OnlineDashboardBranchController::class, 'update']);
+            Route::delete('/{branch}', [OnlineDashboardBranchController::class, 'destroy']);
+            Route::get('/unassigned-employees', [OnlineDashboardBranchController::class, 'getUnassignedEmployees']);
+            Route::get('/unassigned-photographers', [OnlineDashboardBranchController::class, 'getUnassignedPhotographers']);
         });
     });
 

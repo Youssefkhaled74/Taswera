@@ -142,7 +142,7 @@ class EmployeeController extends Controller
             $validator = Validator::make($request->all(), [
                 'name' => ['required', 'string', 'max:255'],
                 'branch_id' => ['required', 'exists:branches,id'],
-                'phone' => ['required', 'string', 'max:20']
+                'phone' => ['nullable', 'string', 'max:20']
             ], [
                 'name.required' => 'The name field is required.',
                 'name.max' => 'The name cannot exceed 255 characters.',
@@ -163,6 +163,7 @@ class EmployeeController extends Controller
             $data = $validator->validated();
             $data['role'] = 'photographer';
             $data['status'] = 'active';
+            $data['phone'] = $request->input('phone', 'N/A'); // Optional phone field
             $data['email'] = strtolower(str_replace(' ', '.', $data['name'])) . '@photographer.com';
             $data['password'] = Hash::make('password123');
             
@@ -298,8 +299,8 @@ class EmployeeController extends Controller
             $validator = Validator::make($request->all(), [
                 'name' => ['required', 'string', 'max:255'],
                 'branch_id' => ['required', 'exists:branches,id'],
-                'phone' => ['required', 'string', 'max:20'],
-                'status' => ['required', Rule::in(['active', 'inactive'])]
+                'phone' => ['nullable', 'string', 'max:20'],
+                'status' => ['nullable', Rule::in(['active', 'inactive'])]
             ], [
                 'name.required' => 'The name field is required.',
                 'name.max' => 'The name cannot exceed 255 characters.',
