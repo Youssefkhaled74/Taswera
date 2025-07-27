@@ -12,11 +12,10 @@ class BranchManagerService implements BranchManagerServiceInterface
     /**
      * Get branch staff members.
      */
-    public function getBranchStaff(BranchManager $manager): Collection
+    public function getBranchStaff(BranchManager $manager)
     {
         return Staff::where('branch_id', $manager->branch_id)
-            ->with('branch')
-            ->get();
+            ->with(['branch', 'uploadedPhotos']);
     }
 
     /**

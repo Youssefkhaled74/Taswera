@@ -173,7 +173,7 @@ class UserInterfaceRepository implements UserInterfaceRepositoryInterface
                 'user_id' => $user->id,
                 'branch_id' => $user->branch_id,
                 'barcode_prefix' => substr($user->barcode, 0, 8),
-                'payment_method' => $data['payment_method'],
+                'payment_method' => 'cash',
                 'package_id' => $packageId,
                 'status' => 'pending',
                 'metadata' => [
@@ -198,10 +198,46 @@ class UserInterfaceRepository implements UserInterfaceRepositoryInterface
                 'photos' => PhotoResource::collection($photos->fresh()),
                 'summary' => [
                     'num_photos' => $photos->count(),
-                    'payment_method' => $data['payment_method'],
+                    'payment_method' => 'cash',
                     'package_id' => $packageId
                 ]
             ];
         });
+    }
+
+    public function getPhotosReadyToPrint(string $barcode, string $phoneNumber): array
+    {
+        // Get user by barcode and phone number
+        $user = User::where('barcode', 'LIKE', $barcode . '%')
+            ->where('phone_number', $phoneNumber)
+            ->first();
+
+        if (!$user) {
+            return [];
+        }
+
+        // Get photos that are ready to print for this user
+        $photos = Photo::with(['staff', 'branch'])
+            ->where('user_id', $user->id)
+            ->where('status', 'ready_to_print')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Get print requests associated with these photos
+        $printRequests = PrintRequest::with(['photos', 'user', 'branch', 'package'])
+            ->where('user_id', $user->id)
+            ->where('status', 'ready_to_print')
+            ->get();
+
+        return [
+            'user' => [
+                'barcode' => $user->barcode,
+                'phone_number' => $user->phone_number,
+                'branch_id' => $user->branch_id,
+                'branch' => new BranchResource($user->branch)
+            ],
+            'photos' => PhotoResource::collection($photos)->resolve(),
+            'print_requests' => PrintRequestResource::collection($printRequests)->resolve()
+        ];
     }
 } 

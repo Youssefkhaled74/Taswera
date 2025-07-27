@@ -70,7 +70,6 @@ class BranchManagerController extends Controller
         $manager = $request->user();
         $branch = Branch::find($manager->branch_id);
 
-        $this->authorize('viewStaff', $branch);
 
         $staff = $this->branchManagerService->getBranchStaff($manager);
 

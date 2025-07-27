@@ -34,8 +34,8 @@ class UserInterfaceController extends Controller
         ]);
 
         $result = $this->userInterfaceService->getUserPhotos(
-            $validated['barcode'],
-            $validated['phone_number']
+            $request->query('barcode'),
+            $request->query('phone_number')
         );
 
         if (empty($result)) {
@@ -98,7 +98,7 @@ class UserInterfaceController extends Controller
             'photo_ids' => 'required|array|min:1',
             'photo_ids.*' => 'required|integer|exists:photos,id',
             'package_id' => 'nullable|integer|exists:packages,id',
-            'payment_method' => ['required', Rule::in(['cash', 'instaPay', 'creditCard'])]
+            'payment_method' => ['nullable', Rule::in(['cash', 'instaPay', 'creditCard'])]
         ]);
 
         try {
@@ -107,8 +107,8 @@ class UserInterfaceController extends Controller
                 $validated['phone_number'],
                 [
                     'photo_ids' => $validated['photo_ids'],
-                    'package_id' => $validated['package_id'] ?? null,
-                    'payment_method' => $validated['payment_method']
+                    'package_id' => $validated['package_id'] ?? null
+                    //'payment_method' => $validated['payment_method']
                 ]
             );
 
@@ -121,5 +121,25 @@ class UserInterfaceController extends Controller
             return $this->errorResponse($e->getMessage(), 400);
         }
     }
-    
-} 
+    public function getPhotosReadyToPrint(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'barcode_prefix' => 'required|string|min:8',
+            'phone_number' => 'required|string'
+        ]);
+        try {
+            $photos = $this->userInterfaceService->getPhotosReadyToPrint(
+                $request->query('barcode_prefix'),
+                $request->query('phone_number')
+            );
+
+            if (empty($photos)) {
+                return $this->errorResponse('No photos ready for printing', 404);
+            }
+
+            return $this->successResponse($photos, 'Photos ready for printing retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+}

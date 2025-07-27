@@ -204,16 +204,16 @@ class BranchController extends Controller
             // Soft delete the branch
             $branch->delete();
 
-            // Optionally soft-delete or update related models
-            $branch->staff()->update(['branch_id' => null]);  // Set branch_id to null for staff
-            $branch->photos()->delete();  // Soft delete photos if they use SoftDeletes
-            $branch->users()->update(['branch_id' => null]);  // Set branch_id to null for users
-            $branch->orders()->delete();  // Soft delete orders if they use SoftDeletes
-            $branch->payments()->delete();  // Soft delete payments if they use SoftDeletes
-            $branch->syncLogs()->delete();  // Soft delete sync logs if they use SoftDeletes
-            $branch->packages()->delete();  // Soft delete packages if they use SoftDeletes
-            $branch->frames()->delete();  // Soft delete frames if they use SoftDeletes
-            $branch->filters()->delete();  // Soft delete filters if they use SoftDeletes
+            // // Optionally soft-delete or update related models
+            // $branch->staff()->update(['branch_id' => null]);  // Set branch_id to null for staff
+            // $branch->photos()->delete();  // Soft delete photos if they use SoftDeletes
+            // $branch->users()->update(['branch_id' => null]);  // Set branch_id to null for users
+            // $branch->orders()->delete();  // Soft delete orders if they use SoftDeletes
+            // $branch->payments()->delete();  // Soft delete payments if they use SoftDeletes
+            // $branch->syncLogs()->delete();  // Soft delete sync logs if they use SoftDeletes
+            // $branch->packages()->delete();  // Soft delete packages if they use SoftDeletes
+            // $branch->frames()->delete();  // Soft delete frames if they use SoftDeletes
+            // $branch->filters()->delete();  // Soft delete filters if they use SoftDeletes
 
             DB::commit();
 

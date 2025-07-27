@@ -27,10 +27,11 @@ use App\Http\Controllers\Api\OnlineDashboard\BranchController as OnlineDashboard
 */
 
 Route::prefix('user-interface')->group(function () {
-    Route::post('get-photos', [UserInterfaceController::class, 'getUserPhotos']);
+    Route::get('get-photos', [UserInterfaceController::class, 'getUserPhotos']);
     Route::post('add-photo', [UserInterfaceController::class, 'addUserPhoto']);
     Route::post('select-photos', [UserInterfaceController::class, 'selectPhotosForPrinting']);
     Route::get('branches/{branchId}/packages', [UserInterfaceController::class, 'getPackages']);
+    Route::get('photos/ready-to-print', [UserInterfaceController::class, 'getPhotosReadyToPrint'])->name('user.photos.ready');
 });
 
 // Public Routes

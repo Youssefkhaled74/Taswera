@@ -61,4 +61,16 @@ class UserInterfaceService implements UserInterfaceServiceInterface
     {
         return $this->userInterfaceRepository->selectPhotosForPrinting($barcode, $phoneNumber, $data);
     }
+
+    /**
+     * Get photos ready to print for a user
+     *
+     * @param string $barcode
+     * @param string $phoneNumber
+     * @return array
+     */
+    public function getPhotosReadyToPrint(string $barcode, string $phoneNumber): array
+    {
+        return $this->userInterfaceRepository->getPhotosReadyToPrint($barcode, $phoneNumber);
+    }
 } 

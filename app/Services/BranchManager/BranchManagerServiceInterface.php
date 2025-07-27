@@ -10,7 +10,7 @@ interface BranchManagerServiceInterface
     /**
      * Get branch staff members.
      */
-    public function getBranchStaff(BranchManager $manager): Collection;
+    public function getBranchStaff(BranchManager $manager);
 
     /**
      * Get branch information.

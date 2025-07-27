@@ -40,4 +40,23 @@ interface UserInterfaceServiceInterface
      * @return array
      */
     public function selectPhotosForPrinting(string $barcode, string $phoneNumber, array $data): array;
-} 
+
+    /**
+     * Get photos ready to print for a user
+     *
+     * @param string $barcode
+     * @param string $phoneNumber
+     * @return array
+     */
+    public function getPhotosReadyToPrint(string $barcode, string $phoneNumber): array;
+
+    /**
+     * Get photos ready to print for a user
+     *
+     * @param string $barcode
+     * @param string $phoneNumber
+     * @return array
+     */
+    
+}
+

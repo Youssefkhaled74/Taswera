@@ -24,6 +24,13 @@ class BranchResource extends JsonResource
             'location' => $this->location ?? 'N/A',
             'created_at' => $this->created_at ?? 'N/A',
             'updated_at' => $this->updated_at ?? 'N/A',
+            'deleted_at' => $this->deleted_at ?? 'N/A',
+            // 'No.of_Employees' => $this->whenLoaded('staff', function () {
+            //     return $this->staff->count() ?? 'N/A';
+            // }),
+            // 'No.of_photographers' => $this->whenLoaded('photographers', function () {
+            //     return $this->staff->where('role', 'photographer')->count() ?? 'N/A';
+            // }),
         ];
     }
 } 
