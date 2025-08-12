@@ -7,11 +7,16 @@ use App\Http\Resources\PhotoResource;
 use App\Models\Photo;
 use App\Models\User;
 use App\Models\PhotoSelection;
+use App\Models\PhotoSelected;
+use App\Http\Resources\PhotoSelectedResource;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class PhotoLookupController extends Controller
@@ -79,63 +84,70 @@ class PhotoLookupController extends Controller
                     return $this->errorResponse('Invalid photo selection', Response::HTTP_BAD_REQUEST);
                 }
 
-                // Replace: remove previous selections and previous clones for this barcode
-                PhotoSelection::where('user_id', $user->id)
+                // Replace: remove previous selected-photo rows for this barcode
+                PhotoSelected::where('user_id', $user->id)
                     ->where('barcode_prefix', $barcodePrefix)
                     ->delete();
 
-                Photo::where('user_id', $user->id)
-                    ->where('barcode_prefix', $barcodePrefix)
-                    ->whereNotNull('metadata->cloned_from')
-                    ->delete();
-
-                $clonedPhotos = [];
+                $createdSelectedRows = [];
 
                 foreach ($photoItems as $item) {
                     $photoId = (int) $item['id'];
                     $quantity = (int) $item['quantity'];
                     $original = $originalPhotos[$photoId];
 
-                    // Insert one selection row per quantity (duplicate rows)
-                    for ($s = 0; $s < $quantity; $s++) {
-                        PhotoSelection::create([
+                    for ($i = 0; $i < $quantity; $i++) {
+                        // Build a unique filename next to the original and duplicate the file
+                        $filePath = $original->file_path; // could be /storage/... or /photos/...
+                        $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+                        $filenameOnly = pathinfo($filePath, PATHINFO_FILENAME);
+                        $dirOnly = rtrim(str_replace('/' . basename($filePath), '', $filePath), '/');
+                        $newFilename = $filenameOnly . '_' . uniqid('dup_') . ($extension ? ".{$extension}" : '');
+
+                        if (Str::startsWith($filePath, '/storage/')) {
+                            $srcRel = ltrim(Str::after($filePath, '/storage/'), '/');
+                            $destRel = trim(dirname($srcRel), '/') . '/' . $newFilename;
+                            Storage::disk('public')->makeDirectory(trim(dirname($srcRel), '/'));
+                            Storage::disk('public')->copy($srcRel, $destRel);
+                            $newFilePath = '/storage/' . $destRel;
+                        } else {
+                            $srcAbs = public_path(ltrim($filePath, '/'));
+                            $destDirAbs = dirname($srcAbs);
+                            File::ensureDirectoryExists($destDirAbs);
+                            $destAbs = $destDirAbs . DIRECTORY_SEPARATOR . $newFilename;
+                            if (File::exists($srcAbs)) {
+                                File::copy($srcAbs, $destAbs);
+                            }
+                            $rel = str_replace(public_path(), '', $destAbs);
+                            $newFilePath = '/' . str_replace('\\', '/', ltrim($rel, DIRECTORY_SEPARATOR));
+                        }
+
+                        // Insert a full photo-like row into photo_selected
+                        $createdSelectedRows[] = PhotoSelected::create([
                             'user_id' => $user->id,
                             'original_photo_id' => $photoId,
-                            'barcode_prefix' => $barcodePrefix,
                             'quantity' => 1,
-                            'metadata' => ['source' => 'user_interface'],
-                        ]);
-                    }
-
-                    for ($i = 0; $i < $quantity; $i++) {
-                        $cloned = Photo::create([
-                            'user_id' => $user->id,
                             'barcode_prefix' => $barcodePrefix,
-                            'file_path' => $original->file_path,
+                            'file_path' => $newFilePath,
                             'original_filename' => $original->original_filename,
                             'uploaded_by' => $original->uploaded_by,
                             'branch_id' => $original->branch_id,
-                            'is_edited' => $original->is_edited,
+                            'is_edited' => (bool) ($original->is_edited ?? false),
                             'thumbnail_path' => $original->thumbnail_path,
                             'status' => 'pending',
                             'sync_status' => 'pending',
                             'metadata' => array_merge($original->metadata ?? [], [
                                 'cloned_from' => $original->id,
-                                'created_from' => 'photo_selection',
-                                'clone_index' => $i + 1,
+                                'created_from' => 'photo_selected',
+                                'duplicate_index' => $i + 1,
                             ]),
                         ]);
-                        $clonedPhotos[] = $cloned;
                     }
                 }
-
-                $eloquentCloned = \Illuminate\Database\Eloquent\Collection::make($clonedPhotos);
-                $eloquentCloned->load(['staff', 'branch']);
-
                 return $this->successResponse([
-                    'cloned_count' => count($clonedPhotos),
-                    'photos' => PhotoResource::collection($eloquentCloned)->resolve(),
-                ], 'Photos cloned and recorded successfully');
+                    'created_count' => count($createdSelectedRows),
+                    'photo_selected' => PhotoSelectedResource::collection(collect($createdSelectedRows))->resolve(),
+                ], 'Photo selected records created successfully');
             });
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);

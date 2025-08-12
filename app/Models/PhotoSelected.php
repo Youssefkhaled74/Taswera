@@ -5,20 +5,30 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class PhotoSelection extends Model
+class PhotoSelected extends Model
 {
     use HasFactory;
+
+    protected $table = 'photo_selected';
 
     protected $fillable = [
         'user_id',
         'original_photo_id',
-        'cloned_photo_id',
-        'barcode_prefix',
         'quantity',
+        'barcode_prefix',
+        'file_path',
+        'original_filename',
+        'uploaded_by',
+        'branch_id',
+        'is_edited',
+        'thumbnail_path',
+        'status',
+        'sync_status',
         'metadata',
     ];
 
     protected $casts = [
+        'is_edited' => 'boolean',
         'metadata' => 'array',
     ];
 }
