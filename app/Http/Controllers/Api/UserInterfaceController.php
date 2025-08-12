@@ -16,6 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Resources\PrintRequestResource;
 use App\Services\UserInterface\UserInterfaceServiceInterface;
+use App\Models\PhotoSelection;
 
 class UserInterfaceController extends Controller
 {
@@ -277,5 +278,91 @@ class UserInterfaceController extends Controller
             'message' => 'User created successfully',
             'user' => $user
         ], 201);
+    }
+
+    public function selectAndClonePhotos(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'barcode' => 'required|string|min:4',
+            'phone_number' => 'required|string',
+            'photo_ids' => 'required|array|min:1',
+            'photo_ids.*.id' => 'required|integer|exists:photos,id',
+            'photo_ids.*.quantity' => 'required|integer|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors()->first(), Response::HTTP_BAD_REQUEST);
+        }
+
+        $data = $validator->validated();
+
+        try {
+            $user = User::where('barcode', 'LIKE', $data['barcode'] . '%')
+                ->where('phone_number', $data['phone_number'])
+                ->first();
+
+            if (!$user) {
+                return $this->errorResponse('User not found', Response::HTTP_NOT_FOUND);
+            }
+
+            $barcodePrefix = $data['barcode'];
+
+            $photoItems = collect($data['photo_ids']);
+            $photoIds = $photoItems->pluck('id')->all();
+
+            $originalPhotos = Photo::whereIn('id', $photoIds)
+                ->where('barcode_prefix', $barcodePrefix)
+                ->get()
+                ->keyBy('id');
+
+            if ($originalPhotos->count() !== count($photoIds)) {
+                return $this->errorResponse('Invalid photo selection', Response::HTTP_BAD_REQUEST);
+            }
+
+            $clonedPhotos = [];
+
+            foreach ($photoItems as $item) {
+                $photoId = (int) $item['id'];
+                $quantity = (int) $item['quantity'];
+                $original = $originalPhotos[$photoId];
+
+                // Save selection record
+                PhotoSelection::create([
+                    'user_id' => $user->id,
+                    'original_photo_id' => $photoId,
+                    'barcode_prefix' => $barcodePrefix,
+                    'quantity' => $quantity,
+                    'metadata' => [ 'source' => 'user_interface' ],
+                ]);
+
+                // Clone photos according to quantity (duplicate Photo rows with same file_path)
+                for ($i = 0; $i < $quantity; $i++) {
+                    $cloned = Photo::create([
+                        'user_id' => $user->id,
+                        'barcode_prefix' => $barcodePrefix,
+                        'file_path' => $original->file_path,
+                        'original_filename' => $original->original_filename,
+                        'uploaded_by' => $original->uploaded_by,
+                        'branch_id' => $original->branch_id,
+                        'is_edited' => $original->is_edited,
+                        'thumbnail_path' => $original->thumbnail_path,
+                        'status' => 'pending',
+                        'sync_status' => 'pending',
+                        'metadata' => array_merge($original->metadata ?? [], [
+                            'cloned_from' => $original->id,
+                            'clone_index' => $i + 1,
+                        ]),
+                    ]);
+                    $clonedPhotos[] = $cloned;
+                }
+            }
+
+            return $this->successResponse([
+                'cloned_count' => count($clonedPhotos),
+                'photos' => PhotoResource::collection(collect($clonedPhotos)->load(['staff', 'branch']))->resolve(),
+            ], 'Photos cloned and recorded successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 }

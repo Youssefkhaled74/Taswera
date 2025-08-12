@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\BranchManagerController;
 use App\Http\Controllers\Api\UserInterfaceController;
+use App\Http\Controllers\Api\PhotoLookupController;
 use App\Http\Controllers\Api\PaymentOffLineController;
 
 use App\Http\Controllers\Api\OnlineDashboard\AdminController;
@@ -29,12 +30,14 @@ use App\Http\Controllers\Api\OnlineDashboard\BranchController as OnlineDashboard
 */
 
 Route::prefix('user-interface')->group(function () {
-    Route::get('get-photos', [UserInterfaceController::class, 'getUserPhotos']);
+    // Route::get('get-photos', [UserInterfaceController::class, 'getUserPhotos']);
     Route::post('add-photo', [UserInterfaceController::class, 'addUserPhoto']);
     Route::post('select-photos', [UserInterfaceController::class, 'selectPhotosForPrinting']);
+    Route::post('select-and-clone-photos', [PhotoLookupController::class, 'selectAndClonePhotos']);
     Route::get('branches/{branchId}/packages', [UserInterfaceController::class, 'getPackages']);
     Route::get('photos/ready-to-print', [UserInterfaceController::class, 'getPhotosReadyToPrint'])->name('user.photos.ready');
 	Route::post('assign/user-qr', [UserInterfaceController::class, 'createUserDependOnQrCode']);
+    Route::get('get-photos', [PhotoLookupController::class, 'getPhotosByBarcodePrefix']);
 });
 
 // Public Routes
