@@ -21,6 +21,8 @@ class PhotoResource extends JsonResource
             'status' => $this->status ?? 'N/A',
             'taken_by' => new StaffResource($this->whenLoaded('staff')) ?? 'N/A',
             'branch' => new BranchResource($this->whenLoaded('branch')) ?? 'N/A',
+            'quantity' => isset($this->pivot) && isset($this->pivot->quantity) ? (int) $this->pivot->quantity : 1,
+            'unit_price' => isset($this->pivot) && isset($this->pivot->unit_price) ? (float) $this->pivot->unit_price : null,
             'metadata' => $this->metadata ?? 'N/A',
             'sync_status' => $this->sync_status ?? 'N/A',
             'created_at' => $this->created_at ?? 'N/A',

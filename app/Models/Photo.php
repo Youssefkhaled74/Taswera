@@ -16,6 +16,7 @@ class Photo extends Model
      */
     protected $fillable = [
         'user_id',
+        'barcode_prefix',
         'file_path',
         'original_filename',
         'uploaded_by',

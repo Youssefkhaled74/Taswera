@@ -12,9 +12,12 @@ use App\Http\Resources\BranchResource;
 use App\Http\Resources\PrintRequestResource;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\Response;
+use App\Traits\ApiResponse;
 
 class UserInterfaceRepository implements UserInterfaceRepositoryInterface
 {
+    use ApiResponse;
     /**
      * Get user photos by barcode and phone number
      *
@@ -22,12 +25,11 @@ class UserInterfaceRepository implements UserInterfaceRepositoryInterface
      * @param string $phoneNumber
      * @return array
      */
-    public function getUserPhotos(string $barcode, string $phoneNumber): array
+    public function getUserPhotos(string $barcode): array
     {
-        // Get user by barcode and phone number with branch relationship
+        // Get user by barcode with branch relationship
         $user = User::with('branch')
             ->where('barcode', 'LIKE', $barcode . '%')
-            ->where('phone_number', $phoneNumber)
             ->first();
 
         if (!$user) {
@@ -36,7 +38,7 @@ class UserInterfaceRepository implements UserInterfaceRepositoryInterface
 
         // Get all photos for the user with relationships
         $photos = Photo::with(['staff', 'branch'])
-            ->where('user_id', $user->id)
+            ->where('barcode_prefix', $barcode)
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -90,7 +92,7 @@ class UserInterfaceRepository implements UserInterfaceRepositoryInterface
         $year = date('Y');
         $month = date('m');
         $day = date('d');
-        $barcodePrefix = substr($user->barcode, 0, 8);
+        $barcodePrefix = $barcode; // use provided barcode directly
         $directory = "photos/{$user->id}/{$year}/{$month}/{$day}/{$barcodePrefix}";
 
         // Ensure the directory exists
@@ -106,9 +108,10 @@ class UserInterfaceRepository implements UserInterfaceRepositoryInterface
         // Create photo record
         $photo = Photo::create([
             'user_id' => $user->id,
+            'barcode_prefix' => $barcodePrefix,
             'file_path' => "/storage/{$path}", // Add /storage prefix for public URL access
             'original_filename' => $originalFilename,
-            'branch_id' => $user->branch_id,
+            'branch_id' => 1,
             'status' => 'pending',
             'sync_status' => 'pending',
             'metadata' => [
@@ -119,6 +122,18 @@ class UserInterfaceRepository implements UserInterfaceRepositoryInterface
                 'day' => $day
             ]
         ]);
+
+        // Attach to the latest print request for this barcode prefix (if exists)
+        $latestPrintRequest = PrintRequest::where('barcode_prefix', $barcodePrefix)
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($latestPrintRequest) {
+            $latestPrintRequest->photos()->attach($photo->id, [
+                'quantity' => 1,
+                'unit_price' => 50,
+            ]);
+        }
 
         // Load relationships and return formatted response
         $photo->load(['staff', 'branch']);
@@ -150,12 +165,37 @@ class UserInterfaceRepository implements UserInterfaceRepositoryInterface
                 return [];
             }
 
-            // Get and validate photos
-            $photos = Photo::whereIn('id', $data['photo_ids'])
-                ->where('user_id', $user->id)
+            // Reset any previous selection: move all user's ready_to_print photos back to pending
+            Photo::where('user_id', $user->id)
+                ->where('status', 'ready_to_print')
+                ->update(['status' => 'pending']);
+
+            // Use the barcode provided in the request as the barcode prefix
+            $barcodePrefix = $barcode;
+            $existingPrintRequests = PrintRequest::where('user_id', $user->id)
+                ->where('barcode_prefix', $barcodePrefix)
+                ->whereIn('status', ['pending', 'ready_to_print'])
+                ->where(function ($q) {
+                    $q->whereNull('is_paid')->orWhere('is_paid', false);
+                })
                 ->get();
 
-            if ($photos->count() !== count($data['photo_ids'])) {
+            foreach ($existingPrintRequests as $existing) {
+                // detach related photos then delete
+                $existing->photos()->detach();
+                $existing->delete();
+            }
+
+            // Parse requested photo IDs and quantities
+            $photoItems = collect($data['photo_ids']); // expects [ ['id'=>.., 'quantity'=>..], ... ]
+            $photoIds = $photoItems->pluck('id')->all();
+
+            // Get and validate photos belong to user
+            $photos = Photo::whereIn('id', $photoIds)
+                ->where('barcode_prefix', $barcodePrefix)
+                ->get();
+
+            if ($photos->count() !== count($photoIds)) {
                 throw new \Exception('Invalid photo selection');
             }
 
@@ -171,8 +211,8 @@ class UserInterfaceRepository implements UserInterfaceRepositoryInterface
             // Create print request
             $printRequest = PrintRequest::create([
                 'user_id' => $user->id,
-                'branch_id' => $user->branch_id,
-                'barcode_prefix' => substr($user->barcode, 0, 8),
+                'branch_id' => $photos->first()->branch_id,
+                'barcode_prefix' => $barcodePrefix,
                 'payment_method' => 'cash',
                 'package_id' => $packageId,
                 'status' => 'pending',
@@ -183,7 +223,17 @@ class UserInterfaceRepository implements UserInterfaceRepositoryInterface
             ]);
 
             // Attach photos to print request
-            $printRequest->photos()->attach($photos->pluck('id'));
+            $attachPayload = $photoItems
+                ->keyBy('id')
+                ->map(function ($item) {
+                    return [
+                        'quantity' => (int) ($item['quantity'] ?? 1),
+                        'unit_price' => 50,
+                    ];
+                })
+                ->only($photos->pluck('id')->all())
+                ->toArray();
+            $printRequest->photos()->attach($attachPayload);
 
             // Update photos status
             $photos->each(function ($photo) {

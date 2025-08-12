@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\BranchManagerController;
 use App\Http\Controllers\Api\UserInterfaceController;
+use App\Http\Controllers\Api\PaymentOffLineController;
+
 use App\Http\Controllers\Api\OnlineDashboard\AdminController;
 use App\Http\Controllers\Api\OnlineDashboard\PaymentController;
 use App\Http\Controllers\Api\OnlineDashboard\EmployeeController;
@@ -32,10 +34,12 @@ Route::prefix('user-interface')->group(function () {
     Route::post('select-photos', [UserInterfaceController::class, 'selectPhotosForPrinting']);
     Route::get('branches/{branchId}/packages', [UserInterfaceController::class, 'getPackages']);
     Route::get('photos/ready-to-print', [UserInterfaceController::class, 'getPhotosReadyToPrint'])->name('user.photos.ready');
+	Route::post('assign/user-qr', [UserInterfaceController::class, 'createUserDependOnQrCode']);
 });
 
 // Public Routes
 Route::post('staff/login', [StaffController::class, 'login']);
+Route::post('check-barcode', [UserController::class, 'checkUserByBarcode']);
 
 // Branch Manager Public Routes
 Route::prefix('branch-manager')->group(function () {
@@ -77,6 +81,14 @@ Route::prefix('staff')->group(function () {
     Route::put('invoices/{invoice}', [InvoiceController::class, 'update']);
 });
 
+Route::prefix('branch-manager')->group(function () {
+	Route::post('/photos/upload', [BranchManagerController::class, 'uploadMultiplePhotos']);
+
+    // Invoice routes for branch manager
+    Route::post('invoices/{barcodePrefix}', [InvoiceController::class, 'store']);
+	Route::post('/invoices/update-total/{barcodePrefix}', [InvoiceController::class, 'updateTotalAmount']);
+
+});
 // Branch Manager Protected Routes
 Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(function () {
     Route::post('logout', [BranchManagerController::class, 'logout']);
@@ -90,10 +102,16 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::get('photos/printed/{barcodePrefix}', [PhotoController::class, 'getPrintedPhotosByBarcode']);
 
     // Invoice routes for branch manager
-    Route::post('invoices/{barcodePrefix}', [InvoiceController::class, 'store']);
+    //Route::post('invoices/{barcodePrefix}', [InvoiceController::class, 'store']);
     Route::get('invoices/active', [InvoiceController::class, 'index']);
     Route::get('invoices/{barcodePrefix}', [InvoiceController::class, 'show']);
     Route::put('invoices/{invoice}', [InvoiceController::class, 'update']);
+	
+	// Route::prefix('payments')->group(function () {
+    //       Route::get('/{branch}', [PaymentOffLineController::class, 'show']);
+    //       Route::get('/clients/{branch}', [PaymentOffLineController::class, 'index']);
+    //       Route::get('/invoices/{branch}/{user}', [PaymentOffLineController::class, 'invoices']);
+    // });
 });
 
 /*

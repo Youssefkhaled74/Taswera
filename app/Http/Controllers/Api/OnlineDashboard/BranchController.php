@@ -125,9 +125,9 @@ class BranchController extends Controller
             return $this->errorResponse('Branch not found', 404);
         }
 
-        if (!$request->has('employee_ids') && !$request->has('photographer_ids')) {
-            return $this->errorResponse('At least one of employee_ids or photographer_ids must be provided', 422);
-        }
+        // if (!$request->has('employee_ids') && !$request->has('photographer_ids')) {
+        //     return $this->errorResponse('At least one of employee_ids or photographer_ids must be provided', 422);
+        // }
 
         if ($request->has('is_active')) {
             $branch->is_active = $request->input('is_active');

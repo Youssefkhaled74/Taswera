@@ -5,13 +5,12 @@ namespace App\Services\UserInterface;
 interface UserInterfaceServiceInterface
 {
     /**
-     * Get user photos by barcode and phone number
+     * Get user photos by barcode
      *
      * @param string $barcode
-     * @param string $phoneNumber
      * @return array
      */
-    public function getUserPhotos(string $barcode, string $phoneNumber): array;
+    public function getUserPhotos(string $barcode): array;
 
     /**
      * Get all available packages for a specific branch

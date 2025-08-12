@@ -2,12 +2,20 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Services\UserInterface\UserInterfaceServiceInterface;
+use App\Models\User;
+use App\Models\Photo;
 use App\Traits\ApiResponse;
+use App\Models\PrintRequest;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
+use Illuminate\Http\JsonResponse;
+use App\Http\Controllers\Controller;
+use App\Http\Resources\PhotoResource;
+use App\Http\Resources\BranchResource;
+use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Validator;
+use App\Http\Resources\PrintRequestResource;
+use App\Services\UserInterface\UserInterfaceServiceInterface;
 
 class UserInterfaceController extends Controller
 {
@@ -28,23 +36,48 @@ class UserInterfaceController extends Controller
      */
     public function getUserPhotos(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'barcode' => 'required|string|min:8',
-            'phone_number' => 'required|string'
+        $validated = Validator::make($request->all(), [
+            'barcode' => 'required|string|min:4',
         ]);
 
-        $result = $this->userInterfaceService->getUserPhotos(
-            $request->query('barcode'),
-            $request->query('phone_number')
-        );
-
-        if (empty($result)) {
-            return $this->errorResponse('User not found', 404);
+        if ($validated->fails()) {
+            return $this->errorResponse($validated->errors(), Response::HTTP_BAD_REQUEST);
         }
 
-        return $this->successResponse($result, 'Photos retrieved successfully');
-    }
+        $barcode = $request->query('barcode');
 
+        // ابحث عن المستخدم مع العلاقة بالفرع
+        $user = User::with('branch')
+            ->where('barcode', 'LIKE', $barcode . '%')
+            ->first();
+
+        if (!$user) {
+            return response()->json([
+                'status' => false,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        // احضر الصور المرتبطة بالمستخدم مع العلاقات
+        $photos = Photo::with(['staff', 'branch'])
+            ->where('barcode_prefix', $barcode)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Photos retrieved successfully',
+            'data' => [
+                'user' => [
+                    'barcode' => $user->barcode,
+                    'phone_number' => $user->phone_number,
+                    'branch_id' => $user->branch_id,
+                    'branch' => $user->branch ? new BranchResource($user->branch) : null,
+                ],
+                'photos' => PhotoResource::collection($photos)->resolve()
+            ]
+        ]);
+    }
     /**
      * Get all available packages for a specific branch
      *
@@ -65,17 +98,24 @@ class UserInterfaceController extends Controller
      */
     public function addUserPhoto(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'barcode' => 'required|string|min:8',
+        $validator = Validator::make($request->all(), [
+            'barcode' => 'required|string|min:4',
             'phone_number' => 'required|string',
             'photo' => 'required|image|max:10240' // Max 10MB
         ]);
 
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors()->first(), Response::HTTP_BAD_REQUEST);
+        }
+
+        $validatedData = $validator->validated();
+
         $result = $this->userInterfaceService->addUserPhoto(
-            $validated['barcode'],
-            $validated['phone_number'],
-            ['photo' => $validated['photo']]
+            $validatedData['barcode'],
+            $validatedData['phone_number'],
+            ['photo' => $validatedData['photo']]
         );
+
 
         if (empty($result)) {
             return $this->errorResponse('User not found', 404);
@@ -92,54 +132,150 @@ class UserInterfaceController extends Controller
      */
     public function selectPhotosForPrinting(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'barcode' => 'required|string|min:8',
+        // Validate the request
+        $validator = Validator::make($request->all(), [
+            'barcode' => 'required|string|min:4',
             'phone_number' => 'required|string',
             'photo_ids' => 'required|array|min:1',
-            'photo_ids.*' => 'required|integer|exists:photos,id',
+            'photo_ids.*.id' => 'required|integer|exists:photos,id',
+            'photo_ids.*.quantity' => 'required|integer|min:1',
             'package_id' => 'nullable|integer|exists:packages,id',
-            'payment_method' => ['nullable', Rule::in(['cash', 'instaPay', 'creditCard'])]
         ]);
 
-        try {
-            $result = $this->userInterfaceService->selectPhotosForPrinting(
-                $validated['barcode'],
-                $validated['phone_number'],
-                [
-                    'photo_ids' => $validated['photo_ids'],
-                    'package_id' => $validated['package_id'] ?? null
-                    //'payment_method' => $validated['payment_method']
-                ]
-            );
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors(), Response::HTTP_BAD_REQUEST);
+        }
 
-            if (empty($result)) {
-                return $this->errorResponse('User not found', 404);
+        // Get validated data as an array
+        $validatedData = $validator->validated();
+
+        // Define payment method
+        $paymentMethod = 'cash'; // Can be 'instaPay' or 'creditCard' as needed
+
+        // Call service to process print request
+        $result = $this->userInterfaceService->selectPhotosForPrinting(
+            $validatedData['barcode'],
+            $validatedData['phone_number'],
+            [
+                'photo_ids' => $validatedData['photo_ids'],
+                'package_id' => $validatedData['package_id'] ?? null,
+                'payment_method' => $paymentMethod,
+            ]
+        );
+
+        // Check if result is empty
+        if (empty($result)) {
+            return $this->errorResponse('User not found', Response::HTTP_NOT_FOUND);
+        }
+
+        return $this->successResponse($result, 'Print request created successfully');
+    }
+
+    public function getPhotosReadyToPrint(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'barcode_prefix' => 'required|string|min:4',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors()->first(), Response::HTTP_BAD_REQUEST);
+        }
+
+
+
+        try {
+            $barcodePrefix = $request->query('barcode_prefix');
+
+            // Get print requests for this barcode prefix and eager load related data
+            $printRequests = PrintRequest::with(['photos.staff', 'photos.branch', 'user', 'branch', 'package'])
+                ->where('barcode_prefix', $barcodePrefix)
+                ->whereIn('status', ['pending', 'ready_to_print'])
+                ->get();
+
+            if ($printRequests->isEmpty()) {
+                return $this->errorResponse('No photos ready for printing', 404);
             }
 
-            return $this->successResponse($result, 'Print request created successfully');
+            // Aggregate photos only from print requests and duplicate by quantity from pivot
+            $photos = $printRequests->flatMap(function ($pr) {
+                return $pr->photos->flatMap(function ($photo) {
+                    $qty = (int) ($photo->pivot->quantity ?? 1);
+                    return collect()->pad($qty, $photo)->values();
+                });
+            })->values();
+
+            if ($photos->isEmpty()) {
+                return $this->errorResponse('No photos ready for printing', 404);
+            }
+
+            $firstRequest = $printRequests->first();
+            $user = $firstRequest->user;
+
+            // Build flat list mirroring photo_print_request table rows
+            $printRequestPhotos = $printRequests->flatMap(function ($pr) {
+                return $pr->photos->map(function ($photo) use ($pr) {
+                    return [
+                        'print_request_id' => $pr->id,
+                        'photo_id' => $photo->id,
+                        'quantity' => (int) ($photo->pivot->quantity ?? 1),
+                        'unit_price' => $photo->pivot->unit_price !== null ? (float) $photo->pivot->unit_price : null,
+                        'created_at' => $photo->pivot->created_at,
+                        'updated_at' => $photo->pivot->updated_at,
+                    ];
+                });
+            })->values();
+
+            return $this->successResponse([
+                'user' => [
+                    'barcode' => $user?->barcode,
+                    'phone_number' => $user?->phone_number,
+                    'branch_id' => $firstRequest->branch_id,
+                ],
+                'photos' => PhotoResource::collection($photos)->resolve(),
+                'print_requests' => PrintRequestResource::collection($printRequests)->resolve(),
+                'print_request_photos' => $printRequestPhotos,
+            ], 'Photos ready for printing retrieved successfully');
         } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), 400);
+            return $this->errorResponse($e->getMessage(), 500);
         }
     }
-    public function getPhotosReadyToPrint(Request $request): JsonResponse
+
+    public function createUserDependOnQrCode(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'barcode_prefix' => 'required|string|min:8',
             'phone_number' => 'required|string'
         ]);
-        try {
-            $photos = $this->userInterfaceService->getPhotosReadyToPrint(
-                $request->query('barcode_prefix'),
-                $request->query('phone_number')
-            );
 
-            if (empty($photos)) {
-                return $this->errorResponse('No photos ready for printing', 404);
-            }
-
-            return $this->successResponse($photos, 'Photos ready for printing retrieved successfully');
-        } catch (\Exception $e) {
-            return $this->errorResponse($e->getMessage(), 500);
+        // 1. Check if barcode is already registered
+        $existingUser = User::where('barcode', $validated['barcode_prefix'])->first();
+        if ($existingUser) {
+            return response()->json([
+                'message' => 'This barcode is already registered to a user.',
+                'user' => $existingUser
+            ], 201);
         }
+
+        // 2. Check if there are any photos with this barcode_prefix
+        $hasPhotos = Photo::where('barcode_prefix', $validated['barcode_prefix'])->exists();
+
+        if (!$hasPhotos) {
+            return response()->json([
+                'message' => 'Cannot create user. No photos found for this barcode.'
+            ], 422); // Unprocessable Entity
+        }
+
+        // 3. Create the user
+        $user = User::create([
+            'barcode' => $validated['barcode_prefix'],
+            'phone_number' => $validated['phone_number'],
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'User created successfully',
+            'user' => $user
+        ], 201);
     }
 }
