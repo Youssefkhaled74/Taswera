@@ -16,6 +16,7 @@ class OrderResource extends JsonResource
             'barcode_prefix' => $this->barcode_prefix,
             'phone_number' => $this->phone_number,
             'photos_count' => $this->whenCounted('orderItems'),
+            'type' => $this->type,
             'items' => OrderItemResource::collection($this->whenLoaded('orderItems')),
             'user' => $this->whenLoaded('user') ? [
                 'id' => $this->user->id,

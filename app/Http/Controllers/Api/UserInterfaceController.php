@@ -333,6 +333,7 @@ class UserInterfaceController extends Controller
                     'branch_id' => $selectedRows->first()->branch_id ?? $user->branch_id,
                     'whatsapp_link' => null,
                     'link_expires_at' => null,
+                    'type' => 'user_interface',
                     'phone_number' => $data['phone_number'],
                     'barcode_prefix' => $data['barcode_prefix'],
                 ]);

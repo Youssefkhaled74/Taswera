@@ -25,6 +25,7 @@ class Order extends Model
         'link_expires_at',
         'phone_number',
         'barcode_prefix',
+        'type',
     ];
 
     /**

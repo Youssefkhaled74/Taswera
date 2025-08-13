@@ -122,6 +122,7 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
 
     // Orders overview for offline dashboard
     Route::get('orders', [OfflineDashboardOrderController::class, 'index']);
+    Route::post('orders/upload-and-create', [OfflineDashboardOrderController::class, 'uploadPhotosAndCreate']);
 });
 
 /*
