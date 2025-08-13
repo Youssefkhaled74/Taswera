@@ -329,7 +329,7 @@ class UserInterfaceController extends Controller
                     'package_id' => null,
                     'total_price' => 0,
                     'status' => 'pending',
-                    'processed_by' => null,
+                    'processed_by' => $selectedRows->first()->uploaded_by ?? null,
                     'branch_id' => $selectedRows->first()->branch_id ?? $user->branch_id,
                     'whatsapp_link' => null,
                     'link_expires_at' => null,

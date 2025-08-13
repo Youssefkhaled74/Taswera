@@ -31,5 +31,20 @@ class PhotoSelected extends Model
         'is_edited' => 'boolean',
         'metadata' => 'array',
     ];
+
+    public function uploader()
+    {
+        return $this->belongsTo(Staff::class, 'uploaded_by');
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function originalPhoto()
+    {
+        return $this->belongsTo(Photo::class, 'original_photo_id');
+    }
 }
 

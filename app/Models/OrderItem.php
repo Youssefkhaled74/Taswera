@@ -39,4 +39,9 @@ class OrderItem extends Model
     {
         return $this->belongsTo(Photo::class);
     }
+
+    public function selected()
+    {
+        return $this->belongsTo(PhotoSelected::class, 'selected_photo_id');
+    }
 } 

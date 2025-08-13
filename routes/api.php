@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\OnlineDashboard\PaymentController;
 use App\Http\Controllers\Api\OnlineDashboard\EmployeeController;
 use App\Http\Controllers\Api\OnlineDashboard\HomePageController;
 use App\Http\Controllers\Api\OnlineDashboard\BranchController as OnlineDashboardBranchController;
+use App\Http\Controllers\Api\OrderController as OfflineDashboardOrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,14 +33,13 @@ use App\Http\Controllers\Api\OnlineDashboard\BranchController as OnlineDashboard
 Route::prefix('user-interface')->group(function () {
     // Route::get('get-photos', [UserInterfaceController::class, 'getUserPhotos']);
     Route::post('add-photo', [UserInterfaceController::class, 'addUserPhoto']);
-    Route::post('select-photos', [UserInterfaceController::class, 'selectPhotosForPrinting']);
     Route::post('select-and-clone-photos', [PhotoLookupController::class, 'selectAndClonePhotos']);
     Route::post('selected-photos/{selected}/update', [PhotoLookupController::class, 'updateSelectedPhoto']);
     Route::get('selected-photos/by-barcode', [PhotoLookupController::class, 'getSelectedPhotosByBarcode']);
     Route::post('orders/create-from-selected', [UserInterfaceController::class, 'createOrderFromSelected']);
     Route::get('branches/{branchId}/packages', [UserInterfaceController::class, 'getPackages']);
     Route::get('photos/ready-to-print', [UserInterfaceController::class, 'getPhotosReadyToPrint'])->name('user.photos.ready');
-	Route::post('assign/user-qr', [UserInterfaceController::class, 'createUserDependOnQrCode']);
+    Route::post('assign/user-qr', [UserInterfaceController::class, 'createUserDependOnQrCode']);
     Route::get('get-photos', [PhotoLookupController::class, 'getPhotosByBarcodePrefix']);
 });
 
@@ -88,12 +88,11 @@ Route::prefix('staff')->group(function () {
 });
 
 Route::prefix('branch-manager')->group(function () {
-	Route::post('/photos/upload', [BranchManagerController::class, 'uploadMultiplePhotos']);
+    Route::post('/photos/upload', [BranchManagerController::class, 'uploadMultiplePhotos']);
 
     // Invoice routes for branch manager
     Route::post('invoices/{barcodePrefix}', [InvoiceController::class, 'store']);
-	Route::post('/invoices/update-total/{barcodePrefix}', [InvoiceController::class, 'updateTotalAmount']);
-
+    Route::post('/invoices/update-total/{barcodePrefix}', [InvoiceController::class, 'updateTotalAmount']);
 });
 // Branch Manager Protected Routes
 Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(function () {
@@ -112,12 +111,17 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::get('invoices/active', [InvoiceController::class, 'index']);
     Route::get('invoices/{barcodePrefix}', [InvoiceController::class, 'show']);
     Route::put('invoices/{invoice}', [InvoiceController::class, 'update']);
-	
-	// Route::prefix('payments')->group(function () {
+
+    // Route::prefix('payments')->group(function () {
     //       Route::get('/{branch}', [PaymentOffLineController::class, 'show']);
     //       Route::get('/clients/{branch}', [PaymentOffLineController::class, 'index']);
     //       Route::get('/invoices/{branch}/{user}', [PaymentOffLineController::class, 'invoices']);
     // });
+
+
+
+    // Orders overview for offline dashboard
+    Route::get('orders', [OfflineDashboardOrderController::class, 'index']);
 });
 
 /*

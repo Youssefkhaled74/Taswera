@@ -84,4 +84,9 @@ class Order extends Model
     {
         return $this->hasOne(Payment::class);
     }
+
+    public function employee()
+    {
+        return $this->belongsTo(Staff::class, 'processed_by');
+    }
 } 
