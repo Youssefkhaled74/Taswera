@@ -243,10 +243,14 @@ class UserInterfaceController extends Controller
 
     public function createUserDependOnQrCode(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'barcode_prefix' => 'required|string|min:8',
+        $validated = Validator::make($request->all(), [
+            'barcode_prefix' => 'required|string|min:4|max:8',
             'phone_number' => 'required|string'
         ]);
+
+        if ($validated->fails()) {
+            return $this->errorResponse($validated->errors()->first(), Response::HTTP_BAD_REQUEST);
+        }
 
         // 1. Check if barcode is already registered
         $existingUser = User::where('barcode', $validated['barcode_prefix'])->first();

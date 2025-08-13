@@ -34,6 +34,8 @@ Route::prefix('user-interface')->group(function () {
     Route::post('add-photo', [UserInterfaceController::class, 'addUserPhoto']);
     Route::post('select-photos', [UserInterfaceController::class, 'selectPhotosForPrinting']);
     Route::post('select-and-clone-photos', [PhotoLookupController::class, 'selectAndClonePhotos']);
+    Route::post('selected-photos/{selected}/update', [PhotoLookupController::class, 'updateSelectedPhoto']);
+    Route::get('selected-photos/by-barcode', [PhotoLookupController::class, 'getSelectedPhotosByBarcode']);
     Route::get('branches/{branchId}/packages', [UserInterfaceController::class, 'getPackages']);
     Route::get('photos/ready-to-print', [UserInterfaceController::class, 'getPhotosReadyToPrint'])->name('user.photos.ready');
 	Route::post('assign/user-qr', [UserInterfaceController::class, 'createUserDependOnQrCode']);

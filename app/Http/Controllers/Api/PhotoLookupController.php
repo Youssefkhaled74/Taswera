@@ -153,4 +153,80 @@ class PhotoLookupController extends Controller
             return $this->errorResponse($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    public function updateSelectedPhoto(Request $request, PhotoSelected $selected): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'photo' => 'required|image|max:10240',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors()->first(), Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $file = $request->file('photo');
+            $originalName = $file->getClientOriginalName();
+
+            $filePath = $selected->file_path;
+            if (!$filePath) {
+                return $this->errorResponse('Selected photo has no file path to replace', Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            if (Str::startsWith($filePath, '/storage/')) {
+                $rel = ltrim(Str::after($filePath, '/storage/'), '/');
+                $dir = trim(dirname($rel), '/');
+                Storage::disk('public')->makeDirectory($dir);
+                Storage::disk('public')->putFileAs($dir, $file, basename($rel));
+                $newFilePath = '/storage/' . $rel;
+            } else {
+                $abs = public_path(ltrim($filePath, '/'));
+                File::ensureDirectoryExists(dirname($abs));
+                // Move uploaded file to overwrite existing file
+                $file->move(dirname($abs), basename($abs));
+                $newFilePath = $filePath;
+            }
+
+            $selected->update([
+                'file_path' => $newFilePath,
+                'original_filename' => $originalName,
+                'metadata' => array_merge($selected->metadata ?? [], [
+                    'replaced_at' => now()->toDateTimeString(),
+                    'replaced_via' => 'api',
+                ]),
+                'status' => 'pending',
+                'sync_status' => 'pending',
+            ]);
+
+            return $this->successResponse(new PhotoSelectedResource($selected->fresh()), 'Selected photo updated successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function getSelectedPhotosByBarcode(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'barcode_prefix' => 'required|string|min:4',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors()->first(), Response::HTTP_BAD_REQUEST);
+        }
+
+        $barcodePrefix = $request->query('barcode_prefix');
+
+        $selected = PhotoSelected::where('barcode_prefix', $barcodePrefix)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        if ($selected->isEmpty()) {
+            return $this->errorResponse('No selected photos found for this barcode', Response::HTTP_NOT_FOUND);
+        }
+
+        return $this->successResponse(
+            PhotoSelectedResource::collection($selected)->resolve(),
+            'Selected photos retrieved successfully'
+        );
+    }
 }
