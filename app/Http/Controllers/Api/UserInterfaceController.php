@@ -16,6 +16,10 @@ use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Resources\PrintRequestResource;
 use App\Services\UserInterface\UserInterfaceServiceInterface;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\PhotoSelected;
+use Illuminate\Support\Facades\DB;
 use App\Models\PhotoSelection;
 
 class UserInterfaceController extends Controller
@@ -285,6 +289,75 @@ class UserInterfaceController extends Controller
             'message' => 'User created successfully',
             'user' => $user
         ], 201);
+    }
+
+    public function createOrderFromSelected(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'barcode_prefix' => 'required|string|min:4',
+            'phone_number' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors()->first(), Response::HTTP_BAD_REQUEST);
+        }
+
+        $data = $validator->validated();
+
+        try {
+            $user = User::where('barcode', 'LIKE', $data['barcode_prefix'] . '%')
+                ->where('phone_number', $data['phone_number'])
+                ->first();
+
+            if (!$user) {
+                return $this->errorResponse('User not found', Response::HTTP_NOT_FOUND);
+            }
+
+            // Load all selected photos for this user and barcode prefix
+            $selectedRows = PhotoSelected::where('user_id', $user->id)
+                ->where('barcode_prefix', $data['barcode_prefix'])
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            if ($selectedRows->isEmpty()) {
+                return $this->errorResponse('No selected photos found for this barcode', Response::HTTP_NOT_FOUND);
+            }
+
+            return DB::transaction(function () use ($user, $data, $selectedRows) {
+                $order = Order::create([
+                    'user_id' => $user->id,
+                    'package_id' => null,
+                    'total_price' => 0,
+                    'status' => 'pending',
+                    'processed_by' => null,
+                    'branch_id' => $selectedRows->first()->branch_id ?? $user->branch_id,
+                    'whatsapp_link' => null,
+                    'link_expires_at' => null,
+                    'phone_number' => $data['phone_number'],
+                    'barcode_prefix' => $data['barcode_prefix'],
+                ]);
+
+                foreach ($selectedRows as $selected) {
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'photo_id' => null,
+                        'selected_photo_id' => $selected->id,
+                        'original_photo_id' => $selected->original_photo_id,
+                        'frame' => null,
+                        'filter' => null,
+                        'edited_photo_path' => $selected->file_path,
+                    ]);
+                }
+
+                return $this->successResponse([
+                    'order_id' => $order->id,
+                    'status' => $order->status,
+                    'items_count' => $selectedRows->count(),
+                ], 'Order created successfully');
+            });
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     public function selectAndClonePhotos(Request $request): JsonResponse

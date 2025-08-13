@@ -20,6 +20,8 @@ class OrderItem extends Model
         'frame',
         'filter',
         'edited_photo_path',
+        'selected_photo_id',
+        'original_photo_id',
     ];
 
     /**

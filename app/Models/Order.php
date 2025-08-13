@@ -23,6 +23,8 @@ class Order extends Model
         'branch_id',
         'whatsapp_link',
         'link_expires_at',
+        'phone_number',
+        'barcode_prefix',
     ];
 
     /**
