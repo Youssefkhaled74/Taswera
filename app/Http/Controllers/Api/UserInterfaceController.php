@@ -244,7 +244,7 @@ class UserInterfaceController extends Controller
     public function createUserDependOnQrCode(Request $request): JsonResponse
     {
         $validated = Validator::make($request->all(), [
-            'barcode_prefix' => 'required|string|min:4|max:8',
+            'barcode_prefix' => 'required|string|min:4',
             'phone_number' => 'required|string'
         ]);
 
@@ -252,8 +252,11 @@ class UserInterfaceController extends Controller
             return $this->errorResponse($validated->errors()->first(), Response::HTTP_BAD_REQUEST);
         }
 
+        $barcodePrefix = $request->barcode_prefix;
+        $phoneNumber = $request->phone_number;
+
         // 1. Check if barcode is already registered
-        $existingUser = User::where('barcode', $validated['barcode_prefix'])->first();
+        $existingUser = User::where('barcode', $barcodePrefix)->first();
         if ($existingUser) {
             return response()->json([
                 'message' => 'This barcode is already registered to a user.',
@@ -262,7 +265,7 @@ class UserInterfaceController extends Controller
         }
 
         // 2. Check if there are any photos with this barcode_prefix
-        $hasPhotos = Photo::where('barcode_prefix', $validated['barcode_prefix'])->exists();
+        $hasPhotos = Photo::where('barcode_prefix', $barcodePrefix);
 
         if (!$hasPhotos) {
             return response()->json([
@@ -272,8 +275,8 @@ class UserInterfaceController extends Controller
 
         // 3. Create the user
         $user = User::create([
-            'barcode' => $validated['barcode_prefix'],
-            'phone_number' => $validated['phone_number'],
+            'barcode' => $barcodePrefix,
+            'phone_number' => $phoneNumber,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

@@ -220,9 +220,9 @@ class PhotoLookupController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        if ($selected->isEmpty()) {
-            return $this->errorResponse('No selected photos found for this barcode', Response::HTTP_NOT_FOUND);
-        }
+        // if ($selected->isEmpty()) {
+        //     return $this->errorResponse('No selected photos found for this barcode', Response::HTTP_NOT_FOUND);
+        // }
 
         return $this->successResponse(
             PhotoSelectedResource::collection($selected)->resolve(),
