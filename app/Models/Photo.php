@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Photo extends Model
 {
@@ -84,9 +85,14 @@ class Photo extends Model
      */
     public function getBarcode(): ?string
     {
-        if (preg_match('/\/(\d{8})\//', $this->file_path, $matches)) {
+        $filePath = $this->file_path;
+        $matches = [];
+        if (preg_match('/\/(\d{8})\//', $filePath, $matches)) {
             return $matches[1];
+        } else {
+            // Add some debugging code here
+            Log::debug("No barcode found in file path: $filePath");
+            return null;
         }
-        return null;
     }
-} 
+}

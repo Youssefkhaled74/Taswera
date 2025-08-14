@@ -26,6 +26,8 @@ class Order extends Model
         'phone_number',
         'barcode_prefix',
         'type',
+        'pay_amount',
+        'shift_id'
     ];
 
     /**
@@ -89,5 +91,10 @@ class Order extends Model
     public function employee()
     {
         return $this->belongsTo(Staff::class, 'processed_by');
+    }
+
+    public function shift()
+    {
+        return $this->belongsTo(Shift::class);
     }
 } 

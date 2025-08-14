@@ -23,6 +23,8 @@ class OrderResource extends JsonResource
                 'phone_number' => $this->user->phone_number,
                 'barcode' => $this->user->barcode,
             ] : null,
+            'shift' => $this->shift ? new ShiftResource($this->shift) : null,
+            'pay_amount' => $this->whenLoaded('pay_amount') ? $this->pay_amount : null,
             'branch' => $this->whenLoaded('branch') ? new BranchResource($this->branch) : null,
             'employee' => $this->whenLoaded('employee') ? new StaffResource($this->employee) : null,
         ];

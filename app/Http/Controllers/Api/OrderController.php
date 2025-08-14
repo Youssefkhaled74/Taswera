@@ -36,7 +36,9 @@ class OrderController extends Controller
         $query = Order::query()
             ->with(['orderItems.selected', 'user', 'branch'])
             ->withCount('orderItems')
-            ->latest();
+            ->latest()
+            ->whereNull('pay_amount')
+            ->where('shift_id' , 0);
 
         if ($request->filled('barcode_prefix')) {
             $query->where('barcode_prefix', $request->query('barcode_prefix'));
@@ -166,5 +168,30 @@ class OrderController extends Controller
             return $this->errorResponse($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-}
 
+
+
+    public function submitOrder(Request $request, $orderId)
+    {
+        $order = Order::find($orderId);
+
+        if (!$order) {
+            return $this->errorResponse('Order not found', Response::HTTP_NOT_FOUND);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'shift_id' => 'required|exists:shifts,id',
+            'pay_amount' => 'required|numeric',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->errorResponse($validator->errors()->first(), Response::HTTP_BAD_REQUEST);
+        }
+
+        $order->shift_id = $request->input('shift_id');
+        $order->pay_amount = $request->input('pay_amount');
+        $order->save();
+
+        return new OrderResource($order);
+    }
+}

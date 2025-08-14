@@ -4,20 +4,21 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\PhotoController;
+use App\Http\Controllers\Api\ShiftController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\PhotoLookupController;
 use App\Http\Controllers\Api\BranchManagerController;
 use App\Http\Controllers\Api\UserInterfaceController;
-use App\Http\Controllers\Api\PhotoLookupController;
-use App\Http\Controllers\Api\PaymentOffLineController;
 
+use App\Http\Controllers\Api\PaymentOffLineController;
 use App\Http\Controllers\Api\OnlineDashboard\AdminController;
 use App\Http\Controllers\Api\OnlineDashboard\PaymentController;
 use App\Http\Controllers\Api\OnlineDashboard\EmployeeController;
 use App\Http\Controllers\Api\OnlineDashboard\HomePageController;
-use App\Http\Controllers\Api\OnlineDashboard\BranchController as OnlineDashboardBranchController;
 use App\Http\Controllers\Api\OrderController as OfflineDashboardOrderController;
+use App\Http\Controllers\Api\OnlineDashboard\BranchController as OnlineDashboardBranchController;
 
 /*
 |--------------------------------------------------------------------------
@@ -123,6 +124,14 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     // Orders overview for offline dashboard
     Route::get('orders', [OfflineDashboardOrderController::class, 'index']);
     Route::post('orders/upload-and-create', [OfflineDashboardOrderController::class, 'uploadPhotosAndCreate']);
+    Route::post('/orders_submit/{orderId}', [OfflineDashboardOrderController::class, 'submitOrder']);
+    //Shift Logic
+
+    Route::get('shifts', [ShiftController::class, 'index']);
+    Route::post('shifts', [ShiftController::class, 'create']);
+    // Route::get('shifts/{shift}', [ShiftController::class, 'show']);
+    Route::put('shifts/{shift}', [ShiftController::class, 'update']);
+    Route::delete('shifts/{shift}', [ShiftController::class, 'delete']);
 });
 
 /*

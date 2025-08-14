@@ -254,12 +254,12 @@ class PhotoController extends Controller
      */
     public function getStaffUploadedBarcodes(int $staffId): JsonResponse
     {
-        $photos = Photo::where('uploaded_by', $staffId)->get();
-        
-        // Extract unique barcodes from file paths
-        $barcodes = $photos->map(function ($photo) {
-            return $photo->getBarcode();
-        })->unique()->values();
+        // Query unique barcode_prefix values for photos uploaded by the staff member
+        $barcodes = Photo::where('uploaded_by', $staffId)
+            ->distinct()
+            ->pluck('barcode_prefix')
+            ->filter()
+            ->values();
 
         return $this->successResponse(
             ['barcodes' => $barcodes],
