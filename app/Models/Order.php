@@ -27,8 +27,10 @@ class Order extends Model
         'barcode_prefix',
         'type',
         'pay_amount',
-        'shift_id'
+        'shift_id',
+        'send_type'
     ];
+
 
     /**
      * The attributes that should be cast.
@@ -97,4 +99,4 @@ class Order extends Model
     {
         return $this->belongsTo(Shift::class);
     }
-} 
+}

@@ -125,6 +125,7 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::get('orders', [OfflineDashboardOrderController::class, 'index']);
     Route::post('orders/upload-and-create', [OfflineDashboardOrderController::class, 'uploadPhotosAndCreate']);
     Route::post('/orders_submit/{orderId}', [OfflineDashboardOrderController::class, 'submitOrder']);
+    Route::get('orders/{prefix}/photos', [OfflineDashboardOrderController::class, 'getOrderPhotos']);
     //Shift Logic
 
     Route::get('shifts', [ShiftController::class, 'index']);

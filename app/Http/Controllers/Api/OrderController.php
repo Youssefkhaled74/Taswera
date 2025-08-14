@@ -2,20 +2,21 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Http\Resources\OrderResource;
-use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\Photo;
-use App\Models\PhotoSelected;
 use App\Models\User;
+use App\Models\Order;
+use App\Models\Photo;
+use App\Models\OrderItem;
 use App\Traits\ApiResponse;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use App\Models\PhotoSelected;
+use Illuminate\Validation\Rule;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\File;
+use App\Http\Resources\OrderResource;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
 
 class OrderController extends Controller
@@ -38,7 +39,7 @@ class OrderController extends Controller
             ->withCount('orderItems')
             ->latest()
             ->whereNull('pay_amount')
-            ->where('shift_id' , 0);
+            ->where('shift_id', 0);
 
         if ($request->filled('barcode_prefix')) {
             $query->where('barcode_prefix', $request->query('barcode_prefix'));
@@ -142,6 +143,7 @@ class OrderController extends Controller
                     'status' => 'pending',
                     'processed_by' => $createdSelected->first()->uploaded_by ?? null,
                     'branch_id' => 1,
+                    'shift_id' => 0,
                     'whatsapp_link' => null,
                     'link_expires_at' => null,
                     'phone_number' => $data['phone_number'],
@@ -193,5 +195,77 @@ class OrderController extends Controller
         $order->save();
 
         return new OrderResource($order);
+    }
+
+
+    public function getOrderPhotos(Request $request, $prefix): JsonResponse
+    {
+        $validated = $request->validate([
+            'send_type' => ['required', 'string', Rule::in(['print', 'send', 'print_and_send'])],
+        ]);
+
+        if (Order::whereNull('pay_amount')->whereNull('shift_id')) {
+            return $this->errorResponse('Order not found', 404);
+        }
+
+        $order = Order::where('barcode_prefix', $prefix)
+            ->with(['orderItems.selected', 'user'])
+            ->first();
+
+        if (!$order) {
+            return $this->errorResponse('Order not found', 404);
+        }
+
+        // Update send type
+        $order->update(['send_type' => $validated['send_type']]);
+
+        // Generate share link if send type includes 'send'
+        if (in_array($validated['send_type'], ['send', 'print_and_send'])) {
+            $shareLink = $this->generateShareLink($order);
+            $order->update([
+                'whatsapp_link' => $shareLink, // You might want to rename this column to 'share_link'
+                'link_expires_at' => now()->addHours(24)
+            ]);
+        }
+        if (in_array($validated['send_type'], ['send', 'print_and_send'])) {
+            $shareLink = $this->generateShareLink($order);
+            $order->update([
+                'whatsapp_link' => $shareLink,
+                'link_expires_at' => now()->addDays(2) // Changed from addHours(24) to addDays(2)
+            ]);
+        }
+
+        $photos = $order->orderItems->map(function ($item) {
+            if (!$item->selected) {
+                return null;
+            }
+
+            return [
+                'id' => $item->selected->id,
+                'file_path' => config('app.url') . $item->selected->file_path,
+                'thumbnail_path' => $item->selected->thumbnail_path,
+                'quantity' => $item->selected->quantity,
+                'status' => $item->selected->status
+            ];
+        })->filter();
+
+        return $this->successResponse([
+            'order' => [
+                'id' => $order->id,
+                'share_link' => 'https://example.com/share/' . $order->barcode_prefix, // Example static link
+                'link_expires_at' => $order->link_expires_at,
+                'send_type' => $order->send_type,
+                'photos' => $photos
+            ]
+        ], 'Order photos retrieved successfully');
+    }
+
+    private function generateShareLink(Order $order): string
+    {
+        // Generate a unique hash for the order
+        $hash = base64_encode($order->id . '_' . $order->barcode_prefix);
+
+        // Create a URL to your frontend application
+        return config('app.url') . '/view-photos/' . $hash;
     }
 }
