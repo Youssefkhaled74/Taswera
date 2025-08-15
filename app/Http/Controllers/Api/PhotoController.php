@@ -2,23 +2,25 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Http\Resources\PhotoResource;
+use App\Models\Order;
 use App\Models\Photo;
-use App\Services\Photo\PhotoServiceInterface;
-use App\Services\User\UserServiceInterface;
+use App\Models\Invoice;
 use App\Traits\ApiResponse;
-use App\Traits\HandlesMediaUploads;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
+use App\Traits\HandlesMediaUploads;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Resources\PhotoResource;
 use App\Http\Resources\InvoiceResource;
-use App\Models\Invoice;
+use Illuminate\Support\Facades\Validator;
+use App\Services\User\UserServiceInterface;
+use App\Services\Photo\PhotoServiceInterface;
+use Illuminate\Validation\ValidationException;
 use App\Services\Invoice\InvoiceServiceInterface;
 
 class PhotoController extends Controller
@@ -44,7 +46,7 @@ class PhotoController extends Controller
     {
         $limit = $request->input('limit', 10);
         $page = $request->input('page', 1);
-        
+
         $query = Photo::with(['staff', 'branch'])
             ->where('sync_status', 'pending')
             ->where('branch_id', Auth::user()->branch_id)
@@ -63,7 +65,7 @@ class PhotoController extends Controller
     {
         $limit = $request->input('limit', 10);
         $page = $request->input('page', 1);
-        
+
         $query = Photo::with(['staff', 'branch'])
             ->where('staff_id', Auth::id())
             ->latest();
@@ -93,7 +95,7 @@ class PhotoController extends Controller
             if ($request->hasFile('photos')) {
                 foreach ($request->file('photos') as $photo) {
                     $path = $this->uploadMedia($photo, 'photos');
-                    
+
                     $uploadedPhotos[] = Photo::create([
                         'file_path' => $path,
                         'staff_id' => Auth::id(),
@@ -149,15 +151,15 @@ class PhotoController extends Controller
 
         try {
             DB::beginTransaction();
-            
+
             // Delete the physical file
             $this->deleteMedia($photo->file_path);
-            
+
             // Delete the database record
             $photo->delete();
-            
+
             DB::commit();
-            
+
             return $this->successResponse(null, 'Photo deleted successfully');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -176,7 +178,7 @@ class PhotoController extends Controller
 
         try {
             $invoice = $this->invoiceService->createInvoice($barcodePrefix, $request->invoice_method);
-            
+
             return $this->successResponse(
                 new InvoiceResource($invoice->load(['user', 'branch', 'staff'])),
                 'Print confirmation successful and invoice generated'
@@ -193,7 +195,7 @@ class PhotoController extends Controller
     {
         try {
             $invoice = $this->invoiceService->getInvoiceByBarcode($barcodePrefix);
-            
+
             if (!$invoice) {
                 return $this->errorResponse('Invoice not found', Response::HTTP_NOT_FOUND);
             }
@@ -214,7 +216,7 @@ class PhotoController extends Controller
     {
         try {
             $invoices = $this->invoiceService->getActiveInvoices();
-            
+
             return $this->successResponse(
                 InvoiceResource::collection($invoices),
                 'Active invoices retrieved successfully'
@@ -235,7 +237,7 @@ class PhotoController extends Controller
 
         try {
             $updated = $this->invoiceService->updateInvoiceStatus($invoice, $request->status);
-            
+
             if (!$updated) {
                 return $this->errorResponse('Failed to update invoice status', Response::HTTP_INTERNAL_SERVER_ERROR);
             }
@@ -293,17 +295,43 @@ class PhotoController extends Controller
      */
     public function getReadyToPrintBarcodes(): JsonResponse
     {
-        $photos = Photo::where('status', 'ready_to_print')->get();
-        
-        // Extract unique barcodes from file paths
-        $barcodes = $photos->map(function ($photo) {
-            return $photo->getBarcode();
-        })->unique()->values();
+        try {
+            // Get all unique barcode prefixes from orders that have no payment
+            $prefixes = Order::whereNotNull('barcode_prefix')
+                ->where('send_type', null)
+                ->select('barcode_prefix')
+                ->distinct()
+                ->get()
 
-        return $this->successResponse(
-            ['barcodes' => $barcodes],
-            'Ready to print barcodes retrieved successfully'
-        );
+                ->pluck('barcode_prefix')
+                ->toArray();
+
+            if (empty($prefixes)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Ready to print barcodes retrieved successfully',
+                    'data' => [
+                        'barcodes' => []
+                    ]
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Ready to print barcodes retrieved successfully',
+                'data' => [
+                    'barcodes' => $prefixes
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => [
+                    'barcodes' => []
+                ]
+            ], 500);
+        }
     }
 
     /**
@@ -365,10 +393,10 @@ class PhotoController extends Controller
                 // Get original filename
                 $filename = $photo->getClientOriginalName();
                 Log::info('Processing photo:', ['filename' => $filename]);
-                
+
                 // Extract the first 8 characters as potential barcode prefix
                 $potentialPrefix = substr($filename, 0, 8);
-                
+
                 // Validate that the prefix is numeric and 8 digits
                 if (!preg_match('/^\d{8}$/', $potentialPrefix)) {
                     $results['invalid_prefix'][] = [
@@ -380,7 +408,7 @@ class PhotoController extends Controller
 
                 // Find user by barcode prefix
                 $user = $this->userService->findUserByBarcodePrefix($potentialPrefix);
-                
+
                 if (!$user) {
                     $results['failed'][] = [
                         'filename' => $filename,
@@ -431,7 +459,7 @@ class PhotoController extends Controller
     {
         try {
             $photos = Photo::where('status', 'printed')->get();
-            
+
             // Extract unique barcodes from file paths
             $barcodes = $photos->map(function ($photo) {
                 return $photo->getBarcode();
@@ -477,4 +505,102 @@ class PhotoController extends Controller
             );
         }
     }
-} 
+    public function getOrdersBySendType(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'type' => ['required', 'string', Rule::in(['print', 'send', 'print_and_send'])]
+            ]);
+
+            if ($validator->fails()) {
+                return $this->errorResponse($validator->errors()->first(), Response::HTTP_BAD_REQUEST);
+            }
+
+            $type = $request->query('type');
+
+            $query = Order::whereNotNull('barcode_prefix')
+                ->where(function ($query) use ($type) {
+                    if ($type === 'print') {
+                        $query->whereIn('send_type', ['print', 'print_and_send']);
+                    } elseif ($type === 'send') {
+                        $query->whereIn('send_type', ['send', 'print_and_send']);
+                    } else {
+                        $query->where('send_type', 'print_and_send');
+                    }
+                })
+                ->select('barcode_prefix')
+                ->distinct();
+
+            $prefixes = $query->get()->pluck('barcode_prefix')->toArray();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Orders retrieved successfully',
+                'data' => [
+                    'barcodes' => $prefixes ?: []
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => [
+                    'barcodes' => []
+                ]
+            ], 500);
+        }
+    }
+    public function getSelectedPhotosByPrefix(string $prefix): JsonResponse
+    {
+        try {
+            // Validate prefix format
+            if (!preg_match('/^\d{4}$/', $prefix)) {
+                return $this->errorResponse('Invalid barcode prefix. Must be exactly 8 digits.', 400);
+            }
+
+            // Get order with its related data
+            $order = Order::where('barcode_prefix', $prefix)
+                ->with(['orderItems.selected' => function ($query) {
+                    $query->select(
+                        'id',
+                        'file_path',
+                        'thumbnail_path',
+                        'quantity',
+                        'status',
+                        'barcode_prefix',
+                        'branch_id'
+                    );
+                }])
+                ->first();
+
+            if (!$order) {
+                return $this->errorResponse('No order found with this prefix', 404);
+            }
+
+            // Transform the data
+            $photos = $order->orderItems->map(function ($item) {
+                if (!$item->selected) {
+                    return null;
+                }
+
+                return [
+                    'id' => $item->selected->id,
+                    'file_path' => config('app.url') . $item->selected->file_path,
+                    'thumbnail_path' => config('app.url') . $item->selected->thumbnail_path,
+                    'quantity' => $item->selected->quantity,
+                    'status' => $item->selected->status,
+                    'branch_id' => $item->selected->branch_id
+                ];
+            })->filter()->values();
+
+            return $this->successResponse([
+                'order_id' => $order->id,
+                'barcode_prefix' => $prefix,
+                'send_type' => $order->send_type,
+                'photos' => $photos
+            ], 'Selected photos retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 500);
+        }
+    }
+}

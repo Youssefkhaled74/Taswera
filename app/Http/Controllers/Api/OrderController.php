@@ -39,7 +39,7 @@ class OrderController extends Controller
             ->withCount('orderItems')
             ->latest()
             ->whereNull('pay_amount')
-            ->where('shift_id', 0);
+            ->where('shift_id', null);
 
         if ($request->filled('barcode_prefix')) {
             $query->where('barcode_prefix', $request->query('barcode_prefix'));
@@ -64,7 +64,7 @@ class OrderController extends Controller
     public function uploadPhotosAndCreate(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'barcode_prefix' => 'required|string|min:4',
+            'barcode_prefix' => 'required|numeric|min:4',
             'phone_number' => 'required|string',
             'employee_id' => 'required|integer|exists:staff,id',
             'photos' => 'required|array|min:1',
@@ -203,14 +203,13 @@ class OrderController extends Controller
         $validated = $request->validate([
             'send_type' => ['required', 'string', Rule::in(['print', 'send', 'print_and_send'])],
         ]);
+        
 
-        if (Order::whereNull('pay_amount')->whereNull('shift_id')) {
-            return $this->errorResponse('Order not found', 404);
-        }
 
         $order = Order::where('barcode_prefix', $prefix)
             ->with(['orderItems.selected', 'user'])
             ->first();
+
 
         if (!$order) {
             return $this->errorResponse('Order not found', 404);

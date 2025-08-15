@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\PhotoLookupController;
 use App\Http\Controllers\Api\BranchManagerController;
 use App\Http\Controllers\Api\UserInterfaceController;
+// use App\Http\Controllers\Api\PaymentController as PaymentOffLineController; 
 
 use App\Http\Controllers\Api\PaymentOffLineController;
 use App\Http\Controllers\Api\OnlineDashboard\AdminController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Api\OnlineDashboard\EmployeeController;
 use App\Http\Controllers\Api\OnlineDashboard\HomePageController;
 use App\Http\Controllers\Api\OrderController as OfflineDashboardOrderController;
 use App\Http\Controllers\Api\OnlineDashboard\BranchController as OnlineDashboardBranchController;
+use App\Models\Payment;
 
 /*
 |--------------------------------------------------------------------------
@@ -106,6 +108,10 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::get('photos/ready-to-print/{barcodePrefix}', [PhotoController::class, 'getReadyToPrintPhotosByBarcode']);
     Route::get('photos/printed', [PhotoController::class, 'getPrintedBarcodes']);
     Route::get('photos/printed/{barcodePrefix}', [PhotoController::class, 'getPrintedPhotosByBarcode']);
+    Route::get('photos/selected/{prefix}', [PhotoController::class, 'getSelectedPhotosByPrefix']);
+
+
+    Route::get('orders/by-send-type', [PhotoController::class, 'getOrdersBySendType']);
 
     // Invoice routes for branch manager
     //Route::post('invoices/{barcodePrefix}', [InvoiceController::class, 'store']);
@@ -113,11 +119,11 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::get('invoices/{barcodePrefix}', [InvoiceController::class, 'show']);
     Route::put('invoices/{invoice}', [InvoiceController::class, 'update']);
 
-    // Route::prefix('payments')->group(function () {
-    //       Route::get('/{branch}', [PaymentOffLineController::class, 'show']);
-    //       Route::get('/clients/{branch}', [PaymentOffLineController::class, 'index']);
-    //       Route::get('/invoices/{branch}/{user}', [PaymentOffLineController::class, 'invoices']);
-    // });
+    Route::prefix('payments')->group(function () {
+        Route::get('/{branch}', [PaymentOffLineController::class, 'show']);
+        Route::get('/clients/{branch}', [PaymentOffLineController::class, 'index']);
+        Route::get('/invoices/{branch}/{user}', [PaymentOffLineController::class, 'invoices']);
+    });
 
 
 
