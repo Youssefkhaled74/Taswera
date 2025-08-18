@@ -39,7 +39,7 @@ class OrderController extends Controller
             ->withCount('orderItems')
             ->latest()
             ->whereNull('pay_amount')
-            ->where('shift_id', null);
+            ->where('shift_id', 0);
 
         if ($request->filled('barcode_prefix')) {
             $query->where('barcode_prefix', $request->query('barcode_prefix'));
@@ -142,7 +142,7 @@ class OrderController extends Controller
                     'total_price' => 0,
                     'status' => 'pending',
                     'processed_by' => $createdSelected->first()->uploaded_by ?? null,
-                    'branch_id' => 1,
+                    'branch_id' => auth('branch-manager')->user()->branch_id ,
                     'shift_id' => 0,
                     'whatsapp_link' => null,
                     'link_expires_at' => null,

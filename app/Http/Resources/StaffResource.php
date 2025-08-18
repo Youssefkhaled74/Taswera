@@ -16,12 +16,12 @@ class StaffResource extends JsonResource
     public function toArray(Request $request): array
     {
         // Get unique customer count by counting distinct barcodes from photos
-        $customerCount = $this->when(
+       $customerCount = $this->when(
             $this->role === 'photographer',
             fn() => $this->uploadedPhotos()
-                ->select(DB::raw('SUBSTRING_INDEX(file_path, "_", 1) as barcode'))
+                ->selectRaw('SUBSTRING_INDEX(file_path, "_", 1) as barcode')
                 ->distinct()
-                ->count()
+                ->count('barcode_prefix')
         );
 
         $data = [

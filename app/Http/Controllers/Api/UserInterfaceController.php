@@ -262,14 +262,27 @@ class UserInterfaceController extends Controller
         // 1. Check if barcode is already registered
         $existingUser = User::where('barcode', $barcodePrefix)->first();
         if ($existingUser) {
+            // If phone number is null, update it
+            if (empty($existingUser->phone_number)) {
+                $existingUser->phone_number = $phoneNumber;
+                $existingUser->save();
+            }
+
+            // Check if user has any paid order
+            $isPaid = Order::where('user_id', $existingUser->id)
+                ->whereNotNull('pay_amount')
+                ->where('pay_amount', '>', 0)
+                ->exists();
+
             return response()->json([
                 'message' => 'This barcode is already registered to a user.',
-                'user' => $existingUser
+                'user' => $existingUser,
+                'isPaid' => $isPaid
             ], 201);
         }
 
         // 2. Check if there are any photos with this barcode_prefix
-        $hasPhotos = Photo::where('barcode_prefix', $barcodePrefix);
+        $hasPhotos = Photo::where('barcode_prefix', $barcodePrefix)->exists();
 
         if (!$hasPhotos) {
             return response()->json([
@@ -287,7 +300,8 @@ class UserInterfaceController extends Controller
 
         return response()->json([
             'message' => 'User created successfully',
-            'user' => $user
+            'user' => $user,
+            'isPaid' => false
         ], 201);
     }
 
@@ -413,7 +427,7 @@ class UserInterfaceController extends Controller
                     'original_photo_id' => $photoId,
                     'barcode_prefix' => $barcodePrefix,
                     'quantity' => $quantity,
-                    'metadata' => [ 'source' => 'user_interface' ],
+                    'metadata' => ['source' => 'user_interface'],
                 ]);
 
                 // Clone photos according to quantity (duplicate Photo rows with same file_path)

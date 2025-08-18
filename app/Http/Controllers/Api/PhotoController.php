@@ -39,7 +39,7 @@ class PhotoController extends Controller
         $this->userService = $userService;
     }
 
-    /**
+    /**a
      * Get photos for offline dashboard
      */
     public function offlineDashboard(Request $request): JsonResponse
@@ -274,10 +274,7 @@ class PhotoController extends Controller
      */
     public function getPhotosByBarcodePrefix(string $barcodePrefix): JsonResponse
     {
-        // Validate that the input is exactly 8 digits
-        if (!preg_match('/^\d{8}$/', $barcodePrefix)) {
-            return $this->errorResponse('Invalid barcode prefix. Must be exactly 8 digits.', 400);
-        }
+        
 
         // Get all photos where the file path contains this barcode prefix
         $photos = Photo::where('file_path', 'like', "%/{$barcodePrefix}/%")
@@ -339,16 +336,18 @@ class PhotoController extends Controller
      */
     public function getReadyToPrintPhotosByBarcode(string $barcodePrefix): JsonResponse
     {
-        // Validate that the input is exactly 8 digits
-        if (!preg_match('/^\d{8}$/', $barcodePrefix)) {
-            return $this->errorResponse('Invalid barcode prefix. Must be exactly 8 digits.', 400);
-        }
+       
 
         // Get all ready to print photos for this barcode
-        $photos = Photo::where('status', 'ready_to_print')
+        $order = Order::where('barcode_prefix', $barcodePrefix)->whereNotNull('pay_amount')->first();
+        if (!$order) {
+            return $this->errorResponse('No order found with this prefix', 404);
+        }
+        if ($order->send_type === 'print' || $order->send_type === 'print_and_send') {
+        $photos = Photo::where('barcode_prefix', $barcodePrefix)
             ->where('file_path', 'like', "%/{$barcodePrefix}/%")
             ->with(['user', 'uploader', 'branch'])
-            ->get();
+            ->get();}
 
         return $this->successResponse(
             PhotoResource::collection($photos),
@@ -482,18 +481,26 @@ class PhotoController extends Controller
      */
     public function getPrintedPhotosByBarcode(string $barcodePrefix): JsonResponse
     {
-        // Validate that the input is exactly 8 digits
-        if (!preg_match('/^\d{8}$/', $barcodePrefix)) {
-            return $this->errorResponse('Invalid barcode prefix. Must be exactly 8 digits.', 400);
-        }
+       
 
         try {
             // Get all printed photos for this barcode
-            $photos = Photo::where('status', 'printed')
-                ->where('file_path', 'like', "%/{$barcodePrefix}/%")
-                ->with(['user', 'uploader', 'branch'])
-                ->get();
-
+            //check if the barcode prefix is in the order table
+            $order = Order::where('barcode_prefix', $barcodePrefix)->whereNotNull('pay_amount')->first();
+            if (!$order) {
+                return $this->errorResponse('No order found with this prefix', 404);
+            }
+            
+            //check if the order has a send type of print or print_and_send
+            if ($order->send_type === 'print' || $order->send_type === 'print_and_send') {
+                $photos = Photo::where('barcode_prefix', $barcodePrefix)
+                    ->where('file_path', 'like', "%/{$barcodePrefix}/%")
+                    ->with(['user', 'uploader', 'branch'])
+                    ->get();
+            } else {
+                return $this->errorResponse('No printed photos found for this prefix', 404);
+            }
+            // dd($photos);
             return $this->successResponse(
                 PhotoResource::collection($photos),
                 'Printed photos retrieved successfully'
@@ -553,10 +560,7 @@ class PhotoController extends Controller
     public function getSelectedPhotosByPrefix(string $prefix): JsonResponse
     {
         try {
-            // Validate prefix format
-            if (!preg_match('/^\d{4}$/', $prefix)) {
-                return $this->errorResponse('Invalid barcode prefix. Must be exactly 8 digits.', 400);
-            }
+            
 
             // Get order with its related data
             $order = Order::where('barcode_prefix', $prefix)

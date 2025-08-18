@@ -120,9 +120,11 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::put('invoices/{invoice}', [InvoiceController::class, 'update']);
 
     Route::prefix('payments')->group(function () {
-        Route::get('/{branch}', [PaymentOffLineController::class, 'show']);
+        // Route::get('/{branch}', [PaymentOffLineController::class, 'show']);
         Route::get('/clients/{branch}', [PaymentOffLineController::class, 'index']);
         Route::get('/invoices/{branch}/{user}', [PaymentOffLineController::class, 'invoices']);
+
+        Route::get('/dashboard', [PaymentOffLineController::class, 'paymentsDashboard']);
     });
 
 
@@ -139,6 +141,12 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     // Route::get('shifts/{shift}', [ShiftController::class, 'show']);
     Route::put('shifts/{shift}', [ShiftController::class, 'update']);
     Route::delete('shifts/{shift}', [ShiftController::class, 'delete']);
+    Route::post('photographers', [ShiftController::class, 'addPhotographer']);
+    Route::post('photographers/{id}', [ShiftController::class, 'updatePhotographer']);
+    Route::delete('photographers/{id}', [ShiftController::class, 'deletePhotographer']);
+    Route::post('/users/generate-barcodes', [ShiftController::class, 'generateBarcodes']);
+    Route::get('/users/barcodes', [ShiftController::class, 'getAllBarcodes']);
+
 });
 
 /*
@@ -188,4 +196,7 @@ Route::prefix('onlinedashboard')->group(function () {
     // Homepage dashboard stats - protected by admin auth
     Route::get('homepage/stats', [HomePageController::class, 'getDashboardStats'])
         ->middleware(['auth:admin']);
+    Route::prefix('payments')->group(function () {
+        Route::get('/dashboard/{branchId}', [PaymentOffLineController::class, 'paymentsDashboardByBranchAndShift']);
+    });
 });
