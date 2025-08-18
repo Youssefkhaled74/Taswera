@@ -296,6 +296,7 @@ class PhotoController extends Controller
             // Get all unique barcode prefixes from orders that have no payment
             $prefixes = Order::whereNotNull('barcode_prefix')
                 ->where('send_type', null)
+                ->whereNotNull('pay_amount')
                 ->select('barcode_prefix')
                 ->distinct()
                 ->get()

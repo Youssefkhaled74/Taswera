@@ -64,7 +64,7 @@ class OrderController extends Controller
     public function uploadPhotosAndCreate(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'barcode_prefix' => 'required|numeric|min:4',
+            'barcode_prefix' => 'required|min:4',
             'phone_number' => 'required|string',
             'employee_id' => 'required|integer|exists:staff,id',
             'photos' => 'required|array|min:1',
@@ -80,10 +80,18 @@ class OrderController extends Controller
         try {
             return DB::transaction(function () use ($data, $request) {
                 // Ensure user exists or create
-                $user = User::firstOrCreate(
-                    ['barcode' => $data['barcode_prefix'], 'phone_number' => $data['phone_number']],
-                    ['created_at' => now(), 'updated_at' => now()]
-                );
+                $user = User::where('barcode', $data['barcode_prefix'])->first();
+
+                if ($user) {
+                    $user->phone_number = $data['phone_number'];
+                    $user->updated_at = now();
+                    $user->save();
+                    // Continue with your logic (e.g., return success or proceed with order creation)
+                } else {
+                    return response()->json([
+                        'message' => 'No user found with this barcode.'
+                    ], 404);
+                }
 
                 $year = date('Y');
                 $month = date('m');
@@ -142,7 +150,7 @@ class OrderController extends Controller
                     'total_price' => 0,
                     'status' => 'pending',
                     'processed_by' => $createdSelected->first()->uploaded_by ?? null,
-                    'branch_id' => auth('branch-manager')->user()->branch_id ,
+                    'branch_id' => auth('branch-manager')->user()->branch_id,
                     'shift_id' => 0,
                     'whatsapp_link' => null,
                     'link_expires_at' => null,
@@ -203,7 +211,7 @@ class OrderController extends Controller
         $validated = $request->validate([
             'send_type' => ['required', 'string', Rule::in(['print', 'send', 'print_and_send'])],
         ]);
-        
+
 
 
         $order = Order::where('barcode_prefix', $prefix)
