@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Photo;
+use App\Models\SyncJob;
 use App\Models\OrderItem;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
@@ -183,24 +184,44 @@ class OrderController extends Controller
 
     public function submitOrder(Request $request, $orderId)
     {
-        $order = Order::find($orderId);
+        // Find the order
+        $order = Order::with(['branch', 'shift', 'processor', 'orderItems'])->find($orderId);
 
         if (!$order) {
             return $this->errorResponse('Order not found', Response::HTTP_NOT_FOUND);
         }
 
+        // Validate request data
         $validator = Validator::make($request->all(), [
             'shift_id' => 'required|exists:shifts,id',
-            'pay_amount' => 'required|numeric',
+            'pay_amount' => 'required|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
             return $this->errorResponse($validator->errors()->first(), Response::HTTP_BAD_REQUEST);
         }
 
+        // Update the order
         $order->shift_id = $request->input('shift_id');
         $order->pay_amount = $request->input('pay_amount');
         $order->save();
+
+        // Prepare data for SyncJob
+        $shift = $order->shift;
+        $employee = $order->processor; // Assumes Staff model has a 'name' attribute
+        $numberOfPhotos = $order->orderItems->count();
+
+        // Create SyncJob record
+        SyncJob::create([
+            'branch_id' => $order->branch_id,
+            'employeeName' => $employee ? $employee->name : 'Unknown', // Adjust if Staff model has a different attribute
+            'pay_amount' => $request->input('pay_amount'),
+            'orderprefixcode' => $order->barcode_prefix ?? 'N/A', // Fallback if barcode_prefix is null
+            'status' => $order->status ?? 'pending', // Use order status or default to 'pending'
+            'shift_name' => $shift ? $shift->name : 'Unknown', // Adjust if shift is not found
+            'orderphone' => $order->phone_number ?? 'N/A', // Fallback if phone_number is null
+            'number_of_photos' => $numberOfPhotos,
+        ]);
 
         return new OrderResource($order);
     }
