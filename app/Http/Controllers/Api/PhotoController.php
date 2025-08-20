@@ -7,6 +7,7 @@ use App\Models\Photo;
 use App\Models\Invoice;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
+use App\Models\PhotoSelected;
 use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
@@ -274,7 +275,7 @@ class PhotoController extends Controller
      */
     public function getPhotosByBarcodePrefix(string $barcodePrefix): JsonResponse
     {
-        
+
 
         // Get all photos where the file path contains this barcode prefix
         $photos = Photo::where('file_path', 'like', "%/{$barcodePrefix}/%")
@@ -337,7 +338,7 @@ class PhotoController extends Controller
      */
     public function getReadyToPrintPhotosByBarcode(string $barcodePrefix): JsonResponse
     {
-       
+
 
         // Get all ready to print photos for this barcode
         $order = Order::where('barcode_prefix', $barcodePrefix)->whereNotNull('pay_amount')->first();
@@ -345,10 +346,11 @@ class PhotoController extends Controller
             return $this->errorResponse('No order found with this prefix', 404);
         }
         if ($order->send_type === 'print' || $order->send_type === 'print_and_send') {
-        $photos = Photo::where('barcode_prefix', $barcodePrefix)
-            ->where('file_path', 'like', "%/{$barcodePrefix}/%")
-            ->with(['user', 'uploader', 'branch'])
-            ->get();}
+            $photos = Photo::where('barcode_prefix', $barcodePrefix)
+                ->where('file_path', 'like', "%/{$barcodePrefix}/%")
+                ->with(['user', 'uploader', 'branch'])
+                ->get();
+        }
 
         return $this->successResponse(
             PhotoResource::collection($photos),
@@ -482,33 +484,40 @@ class PhotoController extends Controller
      */
     public function getPrintedPhotosByBarcode(string $barcodePrefix): JsonResponse
     {
-       
-
         try {
-            // Get all printed photos for this barcode
-            //check if the barcode prefix is in the order table
-            $order = Order::where('barcode_prefix', $barcodePrefix)->whereNotNull('pay_amount')->first();
+            // Get the order with this barcode prefix and paid
+            $order = Order::where('barcode_prefix', $barcodePrefix)
+                ->whereNotNull('pay_amount')
+                ->first();
+
             if (!$order) {
                 return $this->errorResponse('No order found with this prefix', 404);
             }
-            
-            //check if the order has a send type of print or print_and_send
-            if ($order->send_type === 'print' || $order->send_type === 'print_and_send') {
-                $photos = Photo::where('barcode_prefix', $barcodePrefix)
-                    ->where('file_path', 'like', "%/{$barcodePrefix}/%")
-                    ->with(['user', 'uploader', 'branch'])
-                    ->get();
-            } else {
-                return $this->errorResponse('No printed photos found for this prefix', 404);
+
+            // Get the user associated with the order
+            $user = $order->user;
+            if (!$user) {
+                return $this->errorResponse('No user found for this order', 404);
             }
-            // dd($photos);
+
+            // Get selected photos for this user and barcode prefix
+            $selectedPhotos = \App\Models\PhotoSelected::where('user_id', $user->id)
+                ->where('barcode_prefix', $barcodePrefix)
+                ->with(['uploader', 'branch', 'originalPhoto'])
+                ->get();
+
+            if ($selectedPhotos->isEmpty()) {
+                return $this->errorResponse('No selected photos found for this user and barcode', 404);
+            }
+
+            // Return the selected photos using PhotoSelectedResource
             return $this->successResponse(
-                PhotoResource::collection($photos),
-                'Printed photos retrieved successfully'
+                \App\Http\Resources\PhotoSelectedResource::collection($selectedPhotos),
+                'Selected photos retrieved successfully'
             );
         } catch (\Exception $e) {
             return $this->errorResponse(
-                'Failed to retrieve printed photos: ' . $e->getMessage(),
+                'Failed to retrieve selected photos: ' . $e->getMessage(),
                 Response::HTTP_INTERNAL_SERVER_ERROR
             );
         }
@@ -561,7 +570,7 @@ class PhotoController extends Controller
     public function getSelectedPhotosByPrefix(string $prefix): JsonResponse
     {
         try {
-            
+
 
             // Get order with its related data
             $order = Order::where('barcode_prefix', $prefix)

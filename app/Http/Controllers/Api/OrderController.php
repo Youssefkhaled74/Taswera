@@ -39,7 +39,7 @@ class OrderController extends Controller
             ->withCount('orderItems')
             ->latest()
             ->whereNull('pay_amount')
-            ->where('shift_id', 0);
+            ->where('shift_id', 0)->orwhere('shift_id', null);
 
         if ($request->filled('barcode_prefix')) {
             $query->where('barcode_prefix', $request->query('barcode_prefix'));
