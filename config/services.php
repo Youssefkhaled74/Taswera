@@ -34,5 +34,8 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-
+    'taswera_api' => [
+        'url' => env('TASWERA_API_URL', 'https://tasweraonline.evyx.lol'),
+        'token' => env('TASWERA_API_TOKEN', 'branch-abc-secret-token'),
+    ],
 ];

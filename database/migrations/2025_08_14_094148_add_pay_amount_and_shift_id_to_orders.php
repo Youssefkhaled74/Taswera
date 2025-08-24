@@ -8,6 +8,7 @@ return new class extends Migration
 {
     public function up()
     {
+        return true;
         Schema::table('orders', function (Blueprint $table) {
             $table->decimal('pay_amount', 10, 2)->nullable();
             $table->foreignId('shift_id')->constrained()->onDelete('cascade')->default(1);
