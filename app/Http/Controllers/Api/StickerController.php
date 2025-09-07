@@ -15,19 +15,23 @@ class StickerController extends Controller
     {
         $request->validate([
             'name' => 'nullable|string|max:255',
-            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'photos' => 'required|array|min:1',
+            'photos.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        $path = $request->file('photo')->store('stickers', 'public');
-
-        $sticker = Sticker::create([
-            'name' => $request->input('name'),
-            'photo' => $path,
-        ]);
+        $createdStickers = [];
+        foreach ($request->file('photos') as $photoFile) {
+            $path = $photoFile->store('stickers', 'public');
+            $sticker = Sticker::create([
+                'name' => $request->input('name'),
+                'photo' => $path,
+            ]);
+            $createdStickers[] = $sticker;
+        }
 
         return response()->json([
-            'message' => 'Sticker created successfully',
-            'data' => new StickerResource($sticker),
+            'message' => 'Stickers created successfully',
+            'data' => StickerResource::collection($createdStickers),
         ], Response::HTTP_CREATED);
     }
 

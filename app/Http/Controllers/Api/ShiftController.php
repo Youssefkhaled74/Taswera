@@ -85,11 +85,15 @@ class ShiftController extends Controller
     public function addPhotographer(Request $request)
     {
         try {
-            // Define validation rules, excluding branch_id from request validation
+            // Define validation rules, including manager credentials
             $validator = Validator::make($request->all(), [
-                'name' => ['required', 'string', 'max:255'],
+                'manager_email' => ['required', 'string', 'email'],
+                'manager_password' => ['required', 'string'],
+                'name' => ['required', 'string', 'max:255', 'unique:staff,name'],
                 'phone' => ['nullable', 'string', 'max:20']
             ], [
+                'manager_email.required' => 'The manager email is required.',
+                'manager_password.required' => 'The manager password is required.',
                 'name.required' => 'The name field is required.',
                 'name.max' => 'The name cannot exceed 255 characters.',
                 'phone.max' => 'The phone number cannot exceed 20 characters.'
@@ -100,6 +104,17 @@ class ShiftController extends Controller
                     'Validation failed',
                     Response::HTTP_UNPROCESSABLE_ENTITY,
                     $validator->errors()
+                );
+            }
+
+            // Check manager credentials
+            if (
+                $request->input('manager_email') !== env('MANAGER_EMAIL') ||
+                $request->input('manager_password') !== env('MANAGER_PASSWORD')
+            ) {
+                return $this->errorResponse(
+                    'Invalid manager credentials.',
+                    Response::HTTP_UNAUTHORIZED
                 );
             }
 
@@ -145,12 +160,15 @@ class ShiftController extends Controller
     public function updatePhotographer(Request $request, $id)
     {
         try {
-            // Validate request data
+            // Validate request data, including manager credentials
             $validator = Validator::make($request->all(), [
-                'name' => ['sometimes', 'string', 'max:255'],
-                'phone' => ['nullable', 'string', 'max:20'],
+                'manager_email' => ['required', 'string', 'email'],
+                'manager_password' => ['required', 'string'],
+'name' => ['required', 'string', 'max:255', 'unique:staff,name'],                'phone' => ['nullable', 'string', 'max:20'],
                 'status' => ['sometimes', 'string', 'in:active,inactive']
             ], [
+                'manager_email.required' => 'The manager email is required.',
+                'manager_password.required' => 'The manager password is required.',
                 'name.max' => 'The name cannot exceed 255 characters.',
                 'phone.max' => 'The phone number cannot exceed 20 characters.',
                 'status.in' => 'The status must be either active or inactive.'
@@ -161,6 +179,17 @@ class ShiftController extends Controller
                     'Validation failed',
                     Response::HTTP_UNPROCESSABLE_ENTITY,
                     $validator->errors()
+                );
+            }
+
+            // Check manager credentials
+            if (
+                $request->input('manager_email') !== env('MANAGER_EMAIL') ||
+                $request->input('manager_password') !== env('MANAGER_PASSWORD')
+            ) {
+                return $this->errorResponse(
+                    'Invalid manager credentials.',
+                    Response::HTTP_UNAUTHORIZED
                 );
             }
 
@@ -207,6 +236,25 @@ class ShiftController extends Controller
     public function deletePhotographer($id)
     {
         try {
+            // Check manager credentials from request
+            $manager_email = request()->input('manager_email');
+            $manager_password = request()->input('manager_password');
+            if (!$manager_email || !$manager_password) {
+                return $this->errorResponse(
+                    'Manager email and password are required.',
+                    Response::HTTP_UNPROCESSABLE_ENTITY
+                );
+            }
+            if (
+                $manager_email !== env('MANAGER_EMAIL') ||
+                $manager_password !== env('MANAGER_PASSWORD')
+            ) {
+                return $this->errorResponse(
+                    'Invalid manager credentials.',
+                    Response::HTTP_UNAUTHORIZED
+                );
+            }
+
             // Find the photographer
             $branch_id = auth('branch-manager')->user()->branch_id;
             $photographer = Staff::where('id', $id)

@@ -15,19 +15,23 @@ class FrameController extends Controller
     {
         $request->validate([
             'name' => 'nullable|string|max:255',
-            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'photos' => 'required|array|min:1',
+            'photos.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-        $path = $request->file('photo')->store('frames', 'public');
-
-        $frame = Frame::create([
-            'name' => $request->input('name'),
-            'photo' => $path,
-        ]);
+        $createdFrames = [];
+        foreach ($request->file('photos') as $photoFile) {
+            $path = $photoFile->store('frames', 'public');
+            $frame = Frame::create([
+                'name' => $request->input('name'),
+                'photo' => $path,
+            ]);
+            $createdFrames[] = $frame;
+        }
 
         return response()->json([
-            'message' => 'Frame created successfully',
-            'data' => new FrameResource($frame),
+            'message' => 'Frames created successfully',
+            'data' => FrameResource::collection($createdFrames),
         ], Response::HTTP_CREATED);
     }
 
