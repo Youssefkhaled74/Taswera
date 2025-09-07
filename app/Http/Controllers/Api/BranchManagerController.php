@@ -97,7 +97,68 @@ class BranchManagerController extends Controller
         ]);
     }
 
+    /**
+     * Export statistics for photographers and daily payments in the branch.
+     * Accepts optional from_date and to_date (Y-m-d). Defaults to today if not provided.
+     */
+    public function export(Request $request): JsonResponse
+    {
+        $manager = $request->user();
+        $branchId = $manager->branch_id;
+        $from = $request->input('from_date') ? Carbon::parse($request->input('from_date'))->startOfDay() : Carbon::today()->startOfDay();
+        $to = $request->input('to_date') ? Carbon::parse($request->input('to_date'))->endOfDay() : Carbon::today()->endOfDay();
 
+        // Photographers statistics
+        $photographers = Staff::where('branch_id', $branchId)
+            ->where('role', 'photographer')
+            ->whereNull('deleted_at')
+            ->get()
+            ->map(function ($photographer) use ($from, $to) {
+                $photosCount = Photo::where('uploaded_by', $photographer->id)
+                    ->whereBetween('created_at', [$from, $to])
+                    ->count();
+                $uniqueClients = Photo::where('uploaded_by', $photographer->id)
+                    ->whereBetween('created_at', [$from, $to])
+                    ->distinct('user_id')
+                    ->whereNotNull('user_id')
+                    ->count('user_id');
+                return [
+                    'id' => $photographer->id,
+                    'name' => $photographer->name,
+                    'total_photos' => $photosCount,
+                    'unique_clients' => $uniqueClients,
+                ];
+            });
+
+        // Daily stats: total paid and per shift
+        $orders = \App\Models\Order::where('branch_id', $branchId)
+            ->whereBetween('created_at', [$from, $to])
+            ->whereNotNull('pay_amount')
+            ->where('pay_amount', '>', 0)
+            ->get();
+
+        $dailyStats = $orders->groupBy(function ($order) {
+            return Carbon::parse($order->created_at)->toDateString();
+        })->map(function ($ordersForDay, $date) {
+            $totalPaid = $ordersForDay->sum('pay_amount');
+            $shifts = $ordersForDay->groupBy('shift_id')->map(function ($ordersForShift, $shiftId) {
+                return [
+                    'shift_id' => $shiftId,
+                    'amount_paid' => $ordersForShift->sum('pay_amount'),
+                ];
+            })->values();
+            return [
+                'date' => $date,
+                'total_paid' => $totalPaid,
+                'shifts' => $shifts,
+            ];
+        })->values();
+
+        return $this->successResponse([
+            'photographers' => $photographers,
+            'daily_stats' => $dailyStats,
+        ], 'Exported statistics successfully');
+    }
 
     /**
      * Logout branch manager.

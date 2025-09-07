@@ -200,3 +200,7 @@ Route::prefix('onlinedashboard')->group(function () {
         Route::get('/dashboard/{branchId}', [PaymentOffLineController::class, 'paymentsDashboardByBranchAndShift']);
     });
 });
+
+Route::middleware(['auth:sanctum', 'branch_manager'])->group(function () {
+    Route::get('branch-manager/export', [\App\Http\Controllers\Api\BranchManagerController::class, 'export']);
+});
