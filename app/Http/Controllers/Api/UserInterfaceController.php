@@ -267,8 +267,13 @@ class UserInterfaceController extends Controller
         // 1. Check if barcode is already registered
         $existingUser = User::where('barcode', $barcodePrefix)->first();
         if ($existingUser) {
-            // If phone number is null, update it
-            if (empty($existingUser->phone_number)) {
+            if (!empty($existingUser->phone_number)) {
+                // Phone number is already set, check if it matches
+                if ($existingUser->phone_number !== $phoneNumber) {
+                    return $this->errorResponse('Phone number does not match the registered user for this barcode.', Response::HTTP_BAD_REQUEST);
+                }
+            } else {
+                // If phone number is null, update it
                 $existingUser->phone_number = $phoneNumber;
                 $existingUser->save();
             }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use Carbon\Carbon;
+use App\Models\User;
 use App\Models\Photo;
 use App\Models\Staff;
 use App\Models\Branch;
@@ -72,29 +73,29 @@ class BranchManagerController extends Controller
     /**
      * Get branch staff members with their photo and customer statistics.
      */
-   	public function getBranchStaff(Request $request): JsonResponse
-	{
-		$manager = $request->user();
-		$limit = $request->input('limit', 10);
-		$page = $request->input('page', 1);
+    public function getBranchStaff(Request $request): JsonResponse
+    {
+        $manager = $request->user();
+        $limit = $request->input('limit', 10);
+        $page = $request->input('page', 1);
 
-		// Query from service
-		$staffQuery = $this->branchManagerService->getBranchStaff($manager);
+        // Query from service
+        $staffQuery = $this->branchManagerService->getBranchStaff($manager);
 
-		// Load uploadedPhotos relationship
-		$staffQuery->with('uploadedPhotos');
+        // Load uploadedPhotos relationship
+        $staffQuery->with('uploadedPhotos');
 
-		// Apply pagination
-		$paginated = paginate($staffQuery, StaffResource::class, $limit, $page);
+        // Apply pagination
+        $paginated = paginate($staffQuery, StaffResource::class, $limit, $page);
 
-		return response()->json([
-			'success' => true,
-			'message' => 'Branch staff retrieved successfully',
-			'data' => $paginated['data'],
-			'meta' => $paginated['meta'],
-			'links' => $paginated['links'],
-		]);
-	}
+        return response()->json([
+            'success' => true,
+            'message' => 'Branch staff retrieved successfully',
+            'data' => $paginated['data'],
+            'meta' => $paginated['meta'],
+            'links' => $paginated['links'],
+        ]);
+    }
 
 
 
@@ -119,72 +120,88 @@ class BranchManagerController extends Controller
 
         $manager = $this->branchManagerService->register($data);
         return $this->successResponse(
-            new BranchManagerResource($manager), 
+            new BranchManagerResource($manager),
             'Branch manager registered successfully'
         );
     }
-	
-	
-	
-	
-	
 
-	public function uploadMultiplePhotos(Request $request)
-	{
-		$validated = Validator::make($request->all(), [
-			'employee_id' => 'required|exists:staff,id',
-			'barcode_prefix' => 'required|string|min:4|max:4',
-			'photos' => 'required|array|min:1',
-			'photos.*' => 'image',
-		]);
+
+
+
+
+
+    public function uploadMultiplePhotos(Request $request)
+    {
+        $validated = Validator::make($request->all(), [
+            'employee_ids' => 'required|array|min:1',
+            'employee_ids.*' => 'exists:staff,id',
+            'barcode_prefix' => 'required|string|min:4|max:4',
+            'photos' => 'required|array|min:1',
+            'photos.*' => 'image',
+        ]);
 
         if ($validated->fails()) {
             return $this->errorResponse($validated->errors(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-
-		$barcodePrefix = $request->input('barcode_prefix');
-		$staff = Staff::find($request->input('employee_id'));
-		$uploaderId = $staff->id;
-		$branchId = $staff->branch_id;
-        if ($branchId == null) {
-            return $this->errorResponse('Branch not found For this employee', Response::HTTP_NOT_FOUND);
+        $barcodePrefix = $request->input('barcode_prefix');
+        $user = User::where('barcode', $barcodePrefix)->first();
+        if (!$user) {
+            return $this->errorResponse('Barcode prefix not found', Response::HTTP_NOT_FOUND);
         }
-		$today = Carbon::now();
-		$year = $today->year;
-		$month = str_pad($today->month, 2, '0', STR_PAD_LEFT);
-		$day = str_pad($today->day, 2, '0', STR_PAD_LEFT);
+        $employeeIds = $request->input('employee_ids');
+        $staffList = \App\Models\Staff::whereIn('id', $employeeIds)
+            ->whereNull('deleted_at')
+            ->get();
 
-		$savedPhotos = [];
+        if ($staffList->count() !== count($employeeIds)) {
+            return $this->errorResponse('One or more employee IDs are invalid or soft-deleted', Response::HTTP_NOT_FOUND);
+        }
+        $branchId = $staffList->first()->branch_id;
+        if ($branchId == null) {
+            return $this->errorResponse('Branch not found For these employees', Response::HTTP_NOT_FOUND);
+        }
+        $today = \Carbon\Carbon::now();
+        $year = $today->year;
+        $month = str_pad($today->month, 2, '0', STR_PAD_LEFT);
+        $day = str_pad($today->day, 2, '0', STR_PAD_LEFT);
 
-		foreach ($request->file('photos') as $photoFile) {
-			$uniqueCode = Str::random(6);
-			$filename = $barcodePrefix . '_' . $uniqueCode . '.' . $photoFile->getClientOriginalExtension();
-			$directory = public_path("photos/$year/$month/$day/$barcodePrefix");
+        $savedPhotos = [];
+        $photos = $request->file('photos');
+        $numEmployees = count($employeeIds);
+        $employeeIndex = 0;
 
-			// Create directory if it doesn't exist
-			if (!File::exists($directory)) {
-				File::makeDirectory($directory, 0755, true);
-			}
+        foreach ($photos as $photoFile) {
+            $uniqueCode = Str::random(6);
+            $filename = $barcodePrefix . '_' . $uniqueCode . '.' . $photoFile->getClientOriginalExtension();
+            $directory = public_path("photos/$year/$month/$day/$barcodePrefix");
 
-			$photoFile->move($directory, $filename);
+            // Create directory if it doesn't exist
+            if (!File::exists($directory)) {
+                File::makeDirectory($directory, 0755, true);
+            }
 
-			$relativePath = "/photos/$year/$month/$day/$barcodePrefix/$filename";
-			$photo = Photo::create([
-				'user_id' => null,
-				'barcode_prefix' => $barcodePrefix,
-				'file_path' => $relativePath,
-				'original_filename' => $filename,
-				'uploaded_by' => $uploaderId,
-				'branch_id' => $branchId,
-				'status' => 'pending',
-				'sync_status' => 'pending',
-				'is_edited' => false,
-			]);
+            $photoFile->move($directory, $filename);
 
-			$savedPhotos[] = $photo;
-		}
+            $relativePath = "/photos/$year/$month/$day/$barcodePrefix/$filename";
+            $assignedEmployeeId = $employeeIds[$employeeIndex % $numEmployees];
+            $employeeIndex++;
 
-		return $this->successResponse($savedPhotos, 'Photos uploaded successfully' , 201);
-	}
-} 
+            $photo = \App\Models\Photo::create([
+                'user_id' => null,
+                'barcode_prefix' => $barcodePrefix,
+                'file_path' => $relativePath,
+                'original_filename' => $filename,
+                'uploaded_by' => $assignedEmployeeId,
+                'branch_id' => $branchId,
+                'status' => 'pending',
+                'sync_status' => 'pending',
+                'is_edited' => false,
+            ]);
+
+            $savedPhotos[] = $photo;
+        }
+
+        return $this->successResponse($savedPhotos, 'Photos uploaded successfully', 201);
+    }
+}
