@@ -1,18 +1,21 @@
 <?php
 
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\FrameController;
 use App\Http\Controllers\Api\PhotoController;
 use App\Http\Controllers\Api\ShiftController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\StickerController;
+// use App\Http\Controllers\Api\PaymentController as PaymentOffLineController; 
+
 use App\Http\Controllers\Api\PhotoLookupController;
 use App\Http\Controllers\Api\BranchManagerController;
 use App\Http\Controllers\Api\UserInterfaceController;
-// use App\Http\Controllers\Api\PaymentController as PaymentOffLineController; 
-
 use App\Http\Controllers\Api\PaymentOffLineController;
 use App\Http\Controllers\Api\OnlineDashboard\AdminController;
 use App\Http\Controllers\Api\OnlineDashboard\PaymentController;
@@ -20,7 +23,6 @@ use App\Http\Controllers\Api\OnlineDashboard\EmployeeController;
 use App\Http\Controllers\Api\OnlineDashboard\HomePageController;
 use App\Http\Controllers\Api\OrderController as OfflineDashboardOrderController;
 use App\Http\Controllers\Api\OnlineDashboard\BranchController as OnlineDashboardBranchController;
-use App\Models\Payment;
 
 /*
 |--------------------------------------------------------------------------
@@ -147,6 +149,21 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::delete('photographers/{id}', [ShiftController::class, 'deletePhotographer']);
     Route::post('/users/generate-barcodes', [ShiftController::class, 'generateBarcodes']);
     Route::get('/users/barcodes', [ShiftController::class, 'getAllBarcodes']);
+
+
+    // Frames
+    Route::post('/frames', [FrameController::class, 'store']);
+    Route::get('/frames', [FrameController::class, 'index']);
+    Route::get('/frames/{id}', [FrameController::class, 'show']);
+
+    // Bulk delete frames and stickers
+    Route::post('/frames/delete-many', [FrameController::class, 'destroyMany']);
+    Route::post('/stickers/delete-many', [StickerController::class, 'destroyMany']);
+
+    // Stickers
+    Route::post('/stickers', [StickerController::class, 'store']);
+    Route::get('/stickers', [StickerController::class, 'index']);
+    Route::get('/stickers/{id}', [StickerController::class, 'show']);
 });
 
 /*
@@ -202,5 +219,5 @@ Route::prefix('onlinedashboard')->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'branch_manager'])->group(function () {
-    Route::get('branch-manager/export', [\App\Http\Controllers\Api\BranchManagerController::class, 'export']);
+    Route::get('branch-manager/export', [BranchManagerController::class, 'export']);
 });

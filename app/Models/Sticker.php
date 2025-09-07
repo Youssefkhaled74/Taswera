@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Frame extends Model
+class Sticker extends Model
 {
     protected $fillable = [
         'name',
