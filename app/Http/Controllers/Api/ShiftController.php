@@ -164,7 +164,8 @@ class ShiftController extends Controller
             $validator = Validator::make($request->all(), [
                 'manager_email' => ['required', 'string', 'email'],
                 'manager_password' => ['required', 'string'],
-'name' => ['required', 'string', 'max:255', 'unique:staff,name'],                'phone' => ['nullable', 'string', 'max:20'],
+                'name' => ['required', 'string', 'max:255', 'unique:staff,name'],
+                'phone' => ['nullable', 'string', 'max:20'],
                 'status' => ['sometimes', 'string', 'in:active,inactive']
             ], [
                 'manager_email.required' => 'The manager email is required.',

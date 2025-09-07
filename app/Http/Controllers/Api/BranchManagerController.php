@@ -105,9 +105,15 @@ class BranchManagerController extends Controller
     {
         $manager = $request->user();
         $branchId = $manager->branch_id;
-        $from = $request->input('from_date') ? Carbon::parse($request->input('from_date'))->startOfDay() : Carbon::today()->startOfDay();
-        $to = $request->input('to_date') ? Carbon::parse($request->input('to_date'))->endOfDay() : Carbon::today()->endOfDay();
-
+        if ($request->filled('from_date') && !$request->filled('to_date')) {
+            // Only from_date provided: use that day only
+            $from = Carbon::parse($request->input('from_date'))->startOfDay();
+            $to = Carbon::parse($request->input('from_date'))->endOfDay();
+        } else {
+            // Range or default to today
+            $from = $request->input('from_date') ? Carbon::parse($request->input('from_date'))->startOfDay() : Carbon::today()->startOfDay();
+            $to = $request->input('to_date') ? Carbon::parse($request->input('to_date'))->endOfDay() : Carbon::today()->endOfDay();
+        }
         // Photographers statistics
         $photographers = Staff::where('branch_id', $branchId)
             ->where('role', 'photographer')
@@ -126,7 +132,6 @@ class BranchManagerController extends Controller
                     'id' => $photographer->id,
                     'name' => $photographer->name,
                     'total_photos' => $photosCount,
-                    'unique_clients' => $uniqueClients,
                 ];
             });
 

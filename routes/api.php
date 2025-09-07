@@ -218,6 +218,6 @@ Route::prefix('onlinedashboard')->group(function () {
     });
 });
 
-Route::middleware(['auth:sanctum', 'branch_manager'])->group(function () {
+Route::middleware(['auth:branch-manager'])->group(function () {
     Route::get('branch-manager/export', [BranchManagerController::class, 'export']);
 });

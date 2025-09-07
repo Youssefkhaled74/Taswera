@@ -288,22 +288,31 @@ class PaymentOffLineController extends Controller
             }
             $branch = Branch::findOrFail($user->branch_id);
 
-            // Validate shift_id parameter (required)
+            // Filters
             $shiftId = $request->query('shift_id');
-            if (!$shiftId) {
-                $shiftId = null; // Use null for global data
+            $staffId = $request->query('staff_id');
+            $fromDate = $request->query('from_date');
+            $toDate = $request->query('to_date');
+
+            if ($fromDate && !$toDate) {
+                // Only from_date provided: use that day only
+                $startDate = \Carbon\Carbon::parse($fromDate)->startOfDay();
+                $endDate = \Carbon\Carbon::parse($fromDate)->endOfDay();
+            } else {
+                $startDate = $fromDate ? \Carbon\Carbon::parse($fromDate)->startOfDay() : now()->subMonths(6)->startOfMonth();
+                $endDate = $toDate ? \Carbon\Carbon::parse($toDate)->endOfDay() : now()->endOfMonth();
             }
 
             // First Section: Monthly Paid Amounts
-            $startDate = now()->subMonths(6)->startOfMonth(); // February 2025
-            $endDate = now()->endOfMonth(); // August 2025
-
             $query = Order::where('branch_id', $branch->id)
                 ->whereNotNull('pay_amount')
                 ->whereBetween('created_at', [$startDate, $endDate]);
 
             if ($shiftId) {
                 $query->where('shift_id', $shiftId);
+            }
+            if ($staffId) {
+                $query->where('processed_by', $staffId);
             }
 
             $salesData = $query
@@ -333,7 +342,7 @@ class PaymentOffLineController extends Controller
 
             // Second Section: Percentage of Orders with send_type 'send' and 'print'
             $totalOrders = $query->count();
-            $sendPrintOrders = $query->whereIn('send_type', ['send', 'print', 'print_and_send'])->count();
+            $sendPrintOrders = (clone $query)->whereIn('send_type', ['send', 'print', 'print_and_send'])->count();
             $sendPrintPercentage = $totalOrders > 0 ? round(($sendPrintOrders / $totalOrders) * 100) : 0;
 
             $distribution = [
@@ -343,17 +352,42 @@ class PaymentOffLineController extends Controller
 
             // Third Section: Client Data from Users using barcode join (excluding package and payment method, no receipt)
             $clientsQuery = User::where('users.branch_id', $branch->id)->orwhere('users.branch_id', null);
-            if ($shiftId) {
-                $clientsQuery = $clientsQuery->join('orders', 'users.barcode', '=', 'orders.barcode_prefix')
-                    ->where('orders.shift_id', $shiftId)
+            if ($shiftId || $staffId) {
+                $clientsQuery = $clientsQuery->join('orders', 'users.barcode', '=', 'orders.barcode_prefix');
+                if ($shiftId) {
+                    $clientsQuery->where('orders.shift_id', $shiftId);
+                }
+                if ($staffId) {
+                    $clientsQuery->where('orders.processed_by', $staffId);
+                }
+                $clientsQuery->whereBetween('orders.created_at', [$startDate, $endDate])
                     ->select('users.id', 'users.barcode', 'users.phone_number', 'users.branch_id')
                     ->distinct();
             }
-
             $clients = $clientsQuery->select('users.id', 'users.barcode', 'users.phone_number', 'users.branch_id')->get();
 
+            // Add total_paid for each client
+            $clients = $clients->map(function ($client) use ($startDate, $endDate, $shiftId, $staffId, $branch) {
+                $orderQuery = \App\Models\Order::where('barcode_prefix', $client->barcode)
+                    ->where('branch_id', $branch->id)
+                    ->whereBetween('created_at', [$startDate, $endDate]);
+                if ($shiftId) {
+                    $orderQuery->where('shift_id', $shiftId);
+                }
+                if ($staffId) {
+                    $orderQuery->where('processed_by', $staffId);
+                }
+                $totalPaid = $orderQuery->sum('pay_amount');
+                $client->total_paid = $totalPaid;
+                return $client;
+            });
+
             // Fourth Section: Photo Statistics based on send_type
-            $photoQuery = Photo::where('photos.branch_id', $branch->id);
+            $photoQuery = Photo::where('photos.branch_id', $branch->id)
+                ->whereBetween('photos.created_at', [$startDate, $endDate]);
+            if ($staffId) {
+                $photoQuery->where('uploaded_by', $staffId);
+            }
             if ($shiftId) {
                 $photoQuery->whereIn('photos.id', function ($query) use ($branch, $shiftId) {
                     $query->select('order_items.photo_id')
@@ -384,7 +418,11 @@ class PaymentOffLineController extends Controller
             ];
 
             $selectedPhotoQuery = PhotoSelected::where('branch_id', $branch->id)
-                ->where('status', 'sold');
+                ->where('status', 'sold')
+                ->whereBetween('created_at', [$startDate, $endDate]);
+            if ($staffId) {
+                $selectedPhotoQuery->where('uploaded_by', $staffId);
+            }
             if ($shiftId) {
                 $selectedPhotoQuery->whereIn('id', function ($query) use ($branch, $shiftId) {
                     $query->select('selected_photo_id')
