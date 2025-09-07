@@ -44,6 +44,7 @@ Route::prefix('user-interface')->group(function () {
     Route::get('photos/ready-to-print', [UserInterfaceController::class, 'getPhotosReadyToPrint'])->name('user.photos.ready');
     Route::post('assign/user-qr', [UserInterfaceController::class, 'createUserDependOnQrCode']);
     Route::get('get-photos', [PhotoLookupController::class, 'getPhotosByBarcodePrefix']);
+    Route::post('reset-barcodes', [UserInterfaceController::class, 'resetBarCodes']);
 });
 
 // Public Routes
@@ -102,7 +103,7 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::post('logout', [BranchManagerController::class, 'logout']);
     Route::get('branch', [BranchManagerController::class, 'getBranchInfo']);
     Route::get('staff', [BranchManagerController::class, 'getBranchStaff']);
-    Route::get('staff/{staffId}/uploaded-barcodes', [PhotoController::class, 'getStaffUploadedBarcodes']);
+    Route::get('staff/uploaded-barcodes', [PhotoController::class, 'getStaffUploadedBarcodes']);
     Route::get('photos/barcode/{barcodePrefix}', [PhotoController::class, 'getPhotosByBarcodePrefix']);
     Route::get('photos/ready-to-print', [PhotoController::class, 'getReadyToPrintBarcodes']);
     Route::get('photos/ready-to-print/{barcodePrefix}', [PhotoController::class, 'getReadyToPrintPhotosByBarcode']);
@@ -146,7 +147,6 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::delete('photographers/{id}', [ShiftController::class, 'deletePhotographer']);
     Route::post('/users/generate-barcodes', [ShiftController::class, 'generateBarcodes']);
     Route::get('/users/barcodes', [ShiftController::class, 'getAllBarcodes']);
-
 });
 
 /*

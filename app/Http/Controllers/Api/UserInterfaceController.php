@@ -258,6 +258,11 @@ class UserInterfaceController extends Controller
 
         $barcodePrefix = $request->barcode_prefix;
         $phoneNumber = $request->phone_number;
+        $hasPhotos = Photo::where('barcode_prefix', $barcodePrefix)->exists();
+
+        if (!$hasPhotos) {
+            return $this->errorResponse('Cannot create user. No photos found for this barcode.', Response::HTTP_BAD_REQUEST);
+        }
 
         // 1. Check if barcode is already registered
         $existingUser = User::where('barcode', $barcodePrefix)->first();
@@ -459,5 +464,47 @@ class UserInterfaceController extends Controller
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    /**
+     * Reset bar codes: delete users with null phone or updated_at older than 2 days,
+     * and delete related photos and photo_selected records with the same barcode_prefix.
+     */
+    public function resetBarCodes(Request $request): JsonResponse
+    {
+        $twoDaysAgo = now()->subDays(2);
+
+        // Get users to delete
+        // Get IDs of users to delete (null phone or old updated_at)
+        $userIdsToDelete = User::whereNull('phone_number')
+            ->orWhere('updated_at', '<', $twoDaysAgo)
+            ->pluck('id');
+
+        // Get IDs of users referenced in invoices
+        $referencedUserIds = DB::table('invoices')
+            ->whereIn('user_id', $userIdsToDelete)
+            ->pluck('user_id');
+
+        // Only delete users NOT referenced in invoices
+        $safeToDeleteUserIds = $userIdsToDelete->diff($referencedUserIds);
+
+        // Get barcodes for users to be deleted
+        $barcodes = User::whereIn('id', $safeToDeleteUserIds)->pluck('barcode')->filter()->unique()->toArray();
+
+        // Delete users
+        $deletedUsersCount = User::whereIn('id', $safeToDeleteUserIds)->delete();
+
+        // Delete related photos and photo_selected
+        if (!empty($barcodes)) {
+            $deletedPhotosCount = Photo::whereIn('barcode_prefix', $barcodes)->delete();
+            $deletedPhotoSelectedCount = PhotoSelected::whereIn('barcode_prefix', $barcodes)->delete();
+        }
+        return $this->successResponse([
+            'message' => 'Reset completed.',
+            'deleted_users' => $deletedUsersCount,
+            'deleted_photos' => $deletedPhotosCount,
+            'deleted_photo_selected' => $deletedPhotoSelectedCount,
+            'barcodes' => $barcodes
+        ], 'Reset completed.');
     }
 }

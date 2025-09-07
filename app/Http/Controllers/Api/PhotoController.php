@@ -255,11 +255,10 @@ class PhotoController extends Controller
     /**
      * Get all unique 8-digit barcodes from photos uploaded by a specific staff member
      */
-    public function getStaffUploadedBarcodes(int $staffId): JsonResponse
+    public function getStaffUploadedBarcodes(): JsonResponse
     {
         // Query unique barcode_prefix values for photos uploaded by the staff member
-        $barcodes = Photo::where('uploaded_by', $staffId)
-            ->distinct()
+        $barcodes = Photo::distinct()
             ->pluck('barcode_prefix')
             ->filter()
             ->values();

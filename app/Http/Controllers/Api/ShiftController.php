@@ -325,11 +325,19 @@ class ShiftController extends Controller
 
     public function getAllBarcodes(Request $request)
     {
-        // number per page (default 15, or pass ?per_page=20 in request)
+        // Number per page (default 15, or pass ?per_page=20 in request)
         $perPage = $request->input('per_page', 15);
 
-        $users = User::select('barcode', 'phone_number')
-            ->paginate($perPage);
+        // Initialize query
+        $query = User::select('barcode', 'phone_number');
+
+        // Apply filter if ?filter=yes is provided
+        if ($request->input('filter') === 'yes') {
+            $query->whereNull('phone_number');
+        }
+
+        // Paginate the results
+        $users = $query->paginate($perPage);
 
         // Transform the data while keeping pagination meta
         $barcodes = $users->getCollection()->map(function ($user) {
