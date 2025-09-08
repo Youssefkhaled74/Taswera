@@ -47,6 +47,8 @@ Route::prefix('user-interface')->group(function () {
     Route::post('assign/user-qr', [UserInterfaceController::class, 'createUserDependOnQrCode']);
     Route::get('get-photos', [PhotoLookupController::class, 'getPhotosByBarcodePrefix']);
     Route::post('reset-barcodes', [UserInterfaceController::class, 'resetBarCodes']);
+    Route::get('/frames', [FrameController::class, 'index']);
+    Route::get('/stickers', [StickerController::class, 'index']);
 });
 
 // Public Routes
@@ -155,16 +157,16 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::post('/frames', [FrameController::class, 'store']);
     Route::get('/frames', [FrameController::class, 'index']);
     Route::get('/frames/{id}', [FrameController::class, 'show']);
-
+    
     // Bulk delete frames and stickers
     Route::post('/frames/delete-many', [FrameController::class, 'destroyMany']);
     Route::post('/stickers/delete-many', [StickerController::class, 'destroyMany']);
-
+    
     // Stickers
     Route::post('/stickers', [StickerController::class, 'store']);
-    Route::get('/stickers', [StickerController::class, 'index']);
     Route::get('/stickers/{id}', [StickerController::class, 'show']);
 });
+
 
 /*
 |--------------------------------------------------------------------------
