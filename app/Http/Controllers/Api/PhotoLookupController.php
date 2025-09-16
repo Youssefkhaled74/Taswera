@@ -51,7 +51,8 @@ class PhotoLookupController extends Controller
             'phone_number' => 'required|string',
             'photo_ids' => 'required|array|min:1',
             'photo_ids.*.id' => 'required|integer|exists:photos,id',
-            'photo_ids.*.quantity' => 'required|integer|min:1',
+            'photo_ids.*.large_quantity' => 'required|integer|min:0',
+            'photo_ids.*.small_quantity' => 'required|integer|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -93,40 +94,43 @@ class PhotoLookupController extends Controller
 
                 foreach ($photoItems as $item) {
                     $photoId = (int) $item['id'];
-                    $quantity = (int) $item['quantity'];
+                    $largeQuantity = (int) $item['large_quantity'];
+                    $smallQuantity = (int) $item['small_quantity'];
                     $original = $originalPhotos[$photoId];
 
-                    for ($i = 0; $i < $quantity; $i++) {
-                        // Build a unique filename next to the original and duplicate the file
-                        $filePath = $original->file_path; // could be /storage/... or /photos/...
-                        $extension = pathinfo($filePath, PATHINFO_EXTENSION);
-                        $filenameOnly = pathinfo($filePath, PATHINFO_FILENAME);
-                        $dirOnly = rtrim(str_replace('/' . basename($filePath), '', $filePath), '/');
-                        $newFilename = $filenameOnly . '_' . uniqid('dup_') . ($extension ? ".{$extension}" : '');
-
-                        if (Str::startsWith($filePath, '/storage/')) {
-                            $srcRel = ltrim(Str::after($filePath, '/storage/'), '/');
-                            $destRel = trim(dirname($srcRel), '/') . '/' . $newFilename;
-                            Storage::disk('public')->makeDirectory(trim(dirname($srcRel), '/'));
-                            Storage::disk('public')->copy($srcRel, $destRel);
-                            $newFilePath = '/storage/' . $destRel;
-                        } else {
-                            $srcAbs = public_path(ltrim($filePath, '/'));
-                            $destDirAbs = dirname($srcAbs);
-                            File::ensureDirectoryExists($destDirAbs);
-                            $destAbs = $destDirAbs . DIRECTORY_SEPARATOR . $newFilename;
-                            if (File::exists($srcAbs)) {
-                                File::copy($srcAbs, $destAbs);
-                            }
-                            $rel = str_replace(public_path(), '', $destAbs);
-                            $newFilePath = '/' . str_replace('\\', '/', ltrim($rel, DIRECTORY_SEPARATOR));
-                        }
-
-                        // Insert a full photo-like row into photo_selected
+                    // Process large photos
+                    for ($i = 0; $i < $largeQuantity; $i++) {
+                        $newFilePath = $this->clonePhotoFile($original);
                         $createdSelectedRows[] = PhotoSelected::create([
                             'user_id' => $user->id,
                             'original_photo_id' => $photoId,
                             'quantity' => 1,
+                            'type' => 'large',
+                            'barcode_prefix' => $barcodePrefix,
+                            'file_path' => $newFilePath,
+                            'original_filename' => $original->original_filename,
+                            'uploaded_by' => $original->uploaded_by,
+                            'branch_id' => $original->branch_id,
+                            'is_edited' => (bool) ($original->is_edited ?? false),
+                            'thumbnail_path' => $original->thumbnail_path,
+                            'status' => 'pending',
+                            'sync_status' => 'pending',
+                            'metadata' => array_merge($original->metadata ?? [], [
+                                'cloned_from' => $original->id,
+                                'created_from' => 'photo_selected',
+                                'duplicate_index' => $i + 1,
+                            ]),
+                        ]);
+                    }
+
+                    // Process small photos
+                    for ($i = 0; $i < $smallQuantity; $i++) {
+                        $newFilePath = $this->clonePhotoFile($original);
+                        $createdSelectedRows[] = PhotoSelected::create([
+                            'user_id' => $user->id,
+                            'original_photo_id' => $photoId,
+                            'quantity' => 1,
+                            'type' => 'small',
                             'barcode_prefix' => $barcodePrefix,
                             'file_path' => $newFilePath,
                             'original_filename' => $original->original_filename,
@@ -144,6 +148,7 @@ class PhotoLookupController extends Controller
                         ]);
                     }
                 }
+
                 return $this->successResponse([
                     'created_count' => count($createdSelectedRows),
                     'photo_selected' => PhotoSelectedResource::collection(collect($createdSelectedRows))->resolve(),
@@ -152,6 +157,39 @@ class PhotoLookupController extends Controller
         } catch (\Exception $e) {
             return $this->errorResponse($e->getMessage(), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    /**
+     * Clone the photo file and return the new file path.
+     *
+     * @param \App\Models\Photo $original
+     * @return string
+     */
+    private function clonePhotoFile($original): string
+    {
+        $filePath = $original->file_path;
+        $extension = pathinfo($filePath, PATHINFO_EXTENSION);
+        $filenameOnly = pathinfo($filePath, PATHINFO_FILENAME);
+        $dirOnly = rtrim(str_replace('/' . basename($filePath), '', $filePath), '/');
+        $newFilename = $filenameOnly . '_' . uniqid('dup_') . ($extension ? ".{$extension}" : '');
+
+        if (Str::startsWith($filePath, '/storage/')) {
+            $srcRel = ltrim(Str::after($filePath, '/storage/'), '/');
+            $destRel = trim(dirname($srcRel), '/') . '/' . $newFilename;
+            Storage::disk('public')->makeDirectory(trim(dirname($srcRel), '/'));
+            Storage::disk('public')->copy($srcRel, $destRel);
+            return '/storage/' . $destRel;
+        }
+
+        $srcAbs = public_path(ltrim($filePath, '/'));
+        $destDirAbs = dirname($srcAbs);
+        File::ensureDirectoryExists($destDirAbs);
+        $destAbs = $destDirAbs . DIRECTORY_SEPARATOR . $newFilename;
+        if (File::exists($srcAbs)) {
+            File::copy($srcAbs, $destAbs);
+        }
+        $rel = str_replace(public_path(), '', $destAbs);
+        return '/' . str_replace('\\', '/', ltrim($rel, DIRECTORY_SEPARATOR));
     }
 
     public function updateSelectedPhoto(Request $request, PhotoSelected $selected): JsonResponse

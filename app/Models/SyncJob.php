@@ -9,6 +9,7 @@ class SyncJob extends Model
     protected $fillable = [
         'branch_id',
         'employeeName',
+        'employee_id',
         'pay_amount',
         'orderprefixcode',
         'status',

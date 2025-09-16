@@ -25,6 +25,7 @@ class PhotoSelectedResource extends JsonResource
             'branch_id' => $this->branch_id,
             'is_edited' => (bool) ($this->is_edited ?? false),
             'thumbnail_path' => $this->thumbnail_path,
+            'type' => $this->type,
             'status' => $this->status,
             'sync_status' => $this->sync_status,
             'metadata' => $this->metadata,

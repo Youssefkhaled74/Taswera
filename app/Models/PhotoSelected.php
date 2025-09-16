@@ -18,6 +18,7 @@ class PhotoSelected extends Model
         'barcode_prefix',
         'file_path',
         'original_filename',
+        'type',
         'uploaded_by',
         'branch_id',
         'is_edited',
