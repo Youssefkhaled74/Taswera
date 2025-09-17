@@ -499,10 +499,22 @@ class UserInterfaceController extends Controller
      */
     public function resetBarCodes(Request $request): JsonResponse
     {
+        // Check manager credentials
+        $managerEmail = $request->input('manager_email');
+        $managerPassword = $request->input('manager_password');
+        if (!$managerEmail || !$managerPassword) {
+            return $this->errorResponse('Manager email and password are required.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        if (
+            $managerEmail !== env('MANAGER_EMAIL') ||
+            $managerPassword !== env('MANAGER_PASSWORD')
+        ) {
+            return $this->errorResponse('Invalid manager credentials.', Response::HTTP_UNAUTHORIZED);
+        }
+
         $twoDaysAgo = now()->subDays(2);
 
         // Get users to delete
-        // Get IDs of users to delete (null phone or old updated_at)
         $userIdsToDelete = User::whereNull('phone_number')
             ->orWhere('updated_at', '<', $twoDaysAgo)
             ->pluck('id');
