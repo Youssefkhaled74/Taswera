@@ -201,7 +201,7 @@ class BranchManagerController extends Controller
         $validated = Validator::make($request->all(), [
             'employee_ids' => 'required|array|min:1',
             'employee_ids.*' => 'exists:staff,id',
-            'barcode_prefix' => 'required|string|min:4|max:4',
+            'barcode_prefix' => 'required|string|min:4|max:6',
             'photos' => 'required|array|min:1',
             'photos.*' => 'image',
         ]);

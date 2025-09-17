@@ -315,7 +315,8 @@ class ShiftController extends Controller
             // Define the character set for alphanumeric barcodes (36 characters)
             $characters = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
             $charLength = strlen($characters);
-            $maxCombinations = pow($charLength, 4); // 36^4 = 1,679,616
+            $barcodeLength = 5;
+            $maxCombinations = pow($charLength, $barcodeLength); // 36^5 = 60,466,176
 
             // Get existing barcodes
             $existingBarcodes = User::pluck('barcode')->toArray();
@@ -334,7 +335,7 @@ class ShiftController extends Controller
             // Generate unique barcodes
             while (count($barcodes) < $quantity) {
                 $barcode = '';
-                for ($i = 0; $i < 4; $i++) {
+                for ($i = 0; $i < $barcodeLength; $i++) {
                     $barcode .= $characters[rand(0, $charLength - 1)];
                 }
                 if (!in_array($barcode, $existingBarcodes) && !in_array($barcode, $barcodes)) {

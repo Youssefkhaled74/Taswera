@@ -16,7 +16,7 @@ class StickerController extends Controller
         $request->validate([
             'name' => 'nullable|string|max:255',
             'photos' => 'required|array|min:1',
-            'photos.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'photos.*' => 'image|mimes:jpeg,png,jpg,gif',
         ]);
 
         $createdStickers = [];
