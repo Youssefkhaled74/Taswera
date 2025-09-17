@@ -71,14 +71,15 @@ Route::prefix('staff')->group(function () {
     Route::delete('staffDelete/{staff}', [StaffController::class, 'destroy']);
     Route::post('/{staff}/change-password', [StaffController::class, 'changePassword']);
     Route::post('/logout', [StaffController::class, 'logout']);
-
+    
     // Branch Routes
     Route::get('branches', [BranchController::class, 'index']);
     Route::post('branches', [BranchController::class, 'store']);
     Route::get('branches/{branch}', [BranchController::class, 'show']);
     Route::put('branches/{branch}', [BranchController::class, 'update']);
+    Route::get('/branches/phone-numbers', [UserInterfaceController::class, 'getAllPhoneNumbers']);
     Route::delete('branches/{branch}', [BranchController::class, 'destroy']);
-
+    
     // Photo Routes
     Route::get('photos/offline-dashboard', [PhotoController::class, 'offlineDashboard']);
     Route::get('photos/staff', [PhotoController::class, 'staffPhotos']);
@@ -87,7 +88,7 @@ Route::prefix('staff')->group(function () {
     Route::delete('photos/{photo}', [PhotoController::class, 'destroy']);
     Route::get('photos/ready-to-print', [PhotoController::class, 'getReadyToPrintBarcodes']);
     Route::get('photos/ready-to-print/{barcodePrefix}', [PhotoController::class, 'getReadyToPrintPhotosByBarcode']);
-
+    
     // Invoice routes
     Route::post('invoices/{barcodePrefix}', [InvoiceController::class, 'store']);
     Route::get('invoices/active', [InvoiceController::class, 'index']);

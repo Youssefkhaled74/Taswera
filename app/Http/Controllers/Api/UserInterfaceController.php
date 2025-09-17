@@ -26,6 +26,18 @@ class UserInterfaceController extends Controller
 {
     use ApiResponse;
 
+    /**
+     * Get all phone numbers from the phone_numbers table.
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getAllPhoneNumbers(): \Illuminate\Http\JsonResponse
+    {
+        $phoneNumbers = \App\Models\PhoneNumber::pluck('phone_number');
+        return response()->json([
+            'phone_numbers' => $phoneNumbers
+        ]);
+    }
+
     protected $userInterfaceService;
 
     public function __construct(UserInterfaceServiceInterface $userInterfaceService)
