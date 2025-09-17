@@ -152,6 +152,9 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::post('/users/generate-barcodes', [ShiftController::class, 'generateBarcodes']);
     Route::get('/users/barcodes', [ShiftController::class, 'getAllBarcodes']);
 
+    // Endpoint to get last sync time
+    Route::get('/sync/last', [ShiftController::class, 'getLastSyncTime']);
+
 
     // Frames
     Route::post('/frames', [FrameController::class, 'store']);

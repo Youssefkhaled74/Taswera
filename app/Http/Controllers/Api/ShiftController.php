@@ -18,6 +18,26 @@ use Symfony\Component\HttpFoundation\Response;
 class ShiftController extends Controller
 {
     use ApiResponse;
+
+    /**
+     * Get the time of the last sync job with status 'synced'.
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getLastSyncTime()
+    {
+        $lastSync = \App\Models\SyncJob::where('status', 'synced')->orderByDesc('updated_at')->first();
+        if ($lastSync) {
+            return response()->json([
+                'last_sync_time' => $lastSync->updated_at,
+                'sync_job_id' => $lastSync->id,
+            ]);
+        } else {
+            return response()->json([
+                'last_sync_time' => null,
+                'message' => 'No sync job with status synced found.'
+            ], 404);
+        }
+    }
     public function index()
     {
         $shifts = Shift::where('branch_id', auth('branch-manager')->user()->branch_id)->get();
