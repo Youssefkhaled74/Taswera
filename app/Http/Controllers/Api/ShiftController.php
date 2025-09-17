@@ -20,6 +20,46 @@ class ShiftController extends Controller
     use ApiResponse;
 
     /**
+     * Filter sync jobs by branch_id, employee_id, employeeName, and date range.
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function filterSyncJobs(Request $request)
+    {
+        $query = \App\Models\SyncJob::query();
+
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->input('branch_id'));
+        }
+        if ($request->filled('employee_id')) {
+            $query->where('employee_id', $request->input('employee_id'));
+        }
+        if ($request->filled('employeeName')) {
+            $query->where('employeeName', 'like', '%' . $request->input('employeeName') . '%');
+        }
+        if ($request->filled('from')) {
+            $query->whereDate('updated_at', '>=', $request->input('from'));
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('updated_at', '<=', $request->input('to'));
+        }
+
+        $syncJobs = $query->orderByDesc('updated_at')->get();
+
+        // Calculate statistics
+        $totalPhotos = $syncJobs->sum('number_of_photos');
+        $totalMoney = $syncJobs->sum('pay_amount');
+
+        return response()->json([
+            'sync_jobs' => $syncJobs,
+            'statistics' => [
+                'total_photos' => $totalPhotos,
+                'total_money' => $totalMoney,
+            ]
+        ]);
+    }
+
+    /**
      * Get the time of the last sync job with status 'synced'.
      * @return \Illuminate\Http\JsonResponse
      */

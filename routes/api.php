@@ -155,6 +155,9 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     // Endpoint to get last sync time
     Route::get('/sync/last', [ShiftController::class, 'getLastSyncTime']);
 
+    // Endpoint to filter sync jobs
+    Route::get('/sync/filter', [ShiftController::class, 'filterSyncJobs']);
+
 
     // Frames
     Route::post('/frames', [FrameController::class, 'store']);
