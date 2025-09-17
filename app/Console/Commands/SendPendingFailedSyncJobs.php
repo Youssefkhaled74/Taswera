@@ -49,7 +49,7 @@ class SendPendingFailedSyncJobs extends Command
                 'employeeName'    => $syncJob->employeeName,
                 'pay_amount'      => (float) $syncJob->pay_amount,
                 'orderprefixcode' => $syncJob->orderprefixcode,
-                'status'          => $syncJob->status, 
+                'status'          => 'synced', 
                 'shift_name'      => $syncJob->shift_name,
                 'orderphone'      => $syncJob->orderphone,
                 'number_of_photos' => (int) $syncJob->number_of_photos,
