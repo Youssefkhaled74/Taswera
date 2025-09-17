@@ -16,7 +16,7 @@ class FrameController extends Controller
         $request->validate([
             'name' => 'nullable|string|max:255',
             'photos' => 'required|array|min:1',
-            'photos.*' => 'image|mimes:jpeg,png,jpg,gif',
+            'photos.*' => 'image|mimes:jpeg,png,jpg,gif,svg',
         ]);
 
         $createdFrames = [];
