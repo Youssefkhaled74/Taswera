@@ -258,8 +258,13 @@ class UserInterfaceController extends Controller
 
         $barcodePrefix = $request->barcode_prefix;
         $phoneNumber = $request->phone_number;
-        $hasPhotos = Photo::where('barcode_prefix', $barcodePrefix)->exists();
 
+        // Check if phone number already exists in phone_numbers table
+        if (\App\Models\PhoneNumber::where('phone_number', $phoneNumber)->exists()) {
+            return $this->errorResponse('Phone number already exists.', Response::HTTP_CONFLICT);
+        }
+
+        $hasPhotos = Photo::where('barcode_prefix', $barcodePrefix)->exists();
         if (!$hasPhotos) {
             return $this->errorResponse('Cannot create user. No photos found for this barcode.', Response::HTTP_BAD_REQUEST);
         }
@@ -278,6 +283,9 @@ class UserInterfaceController extends Controller
                 $existingUser->save();
             }
 
+            // Store phone number in phone_numbers table
+            \App\Models\PhoneNumber::create(['phone_number' => $phoneNumber]);
+
             // Check if user has any paid order
             $isPaid = Order::where('user_id', $existingUser->id)
                 ->whereNotNull('pay_amount')
@@ -293,7 +301,6 @@ class UserInterfaceController extends Controller
 
         // 2. Check if there are any photos with this barcode_prefix
         $hasPhotos = Photo::where('barcode_prefix', $barcodePrefix)->exists();
-
         if (!$hasPhotos) {
             return response()->json([
                 'message' => 'Cannot create user. No photos found for this barcode.'
@@ -307,6 +314,9 @@ class UserInterfaceController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        // Store phone number in phone_numbers table
+        \App\Models\PhoneNumber::create(['phone_number' => $phoneNumber]);
 
         return response()->json([
             'message' => 'User created successfully',
