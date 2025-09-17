@@ -77,7 +77,6 @@ Route::prefix('staff')->group(function () {
     Route::post('branches', [BranchController::class, 'store']);
     Route::get('branches/{branch}', [BranchController::class, 'show']);
     Route::put('branches/{branch}', [BranchController::class, 'update']);
-    Route::get('/branches/phone-numbers', [UserInterfaceController::class, 'getAllPhoneNumbers']);
     Route::delete('branches/{branch}', [BranchController::class, 'destroy']);
     
     // Photo Routes
@@ -98,7 +97,7 @@ Route::prefix('staff')->group(function () {
 
 Route::prefix('branch-manager')->group(function () {
     Route::post('/photos/upload', [BranchManagerController::class, 'uploadMultiplePhotos']);
-
+    
     // Invoice routes for branch manager
     Route::post('invoices/{barcodePrefix}', [InvoiceController::class, 'store']);
     Route::post('/invoices/update-total/{barcodePrefix}', [InvoiceController::class, 'updateTotalAmount']);
@@ -115,7 +114,8 @@ Route::middleware(['auth:branch-manager'])->prefix('branch-manager')->group(func
     Route::get('photos/printed', [PhotoController::class, 'getPrintedBarcodes']);
     Route::get('photos/printed/{barcodePrefix}', [PhotoController::class, 'getPrintedPhotosByBarcode']);
     Route::get('photos/selected/{prefix}', [PhotoController::class, 'getSelectedPhotosByPrefix']);
-
+    Route::get('/branches/phone-numbers', [UserInterfaceController::class, 'getAllPhoneNumbers']);
+    
 
     Route::get('orders/by-send-type', [PhotoController::class, 'getOrdersBySendType']);
 
