@@ -271,10 +271,8 @@ class UserInterfaceController extends Controller
         $barcodePrefix = $request->barcode_prefix;
         $phoneNumber = $request->phone_number;
 
-        // Check if phone number already exists in phone_numbers table
-        if (\App\Models\PhoneNumber::where('phone_number', $phoneNumber)->exists()) {
-            return $this->errorResponse('Phone number already exists.', Response::HTTP_CONFLICT);
-        }
+        // Phone number table acts as a registry; don't error if it already exists
+        // We'll simply ensure it exists later with firstOrCreate.
 
         $hasPhotos = Photo::where('barcode_prefix', $barcodePrefix)->exists();
         if (!$hasPhotos) {
@@ -295,8 +293,8 @@ class UserInterfaceController extends Controller
                 $existingUser->save();
             }
 
-            // Store phone number in phone_numbers table
-            \App\Models\PhoneNumber::create(['phone_number' => $phoneNumber]);
+            // Ensure phone number is recorded (avoid duplicate key error)
+            \App\Models\PhoneNumber::firstOrCreate(['phone_number' => $phoneNumber]);
 
             // Check if user has any paid order
             $isPaid = Order::where('user_id', $existingUser->id)
@@ -327,8 +325,8 @@ class UserInterfaceController extends Controller
             'updated_at' => now(),
         ]);
 
-        // Store phone number in phone_numbers table
-        \App\Models\PhoneNumber::create(['phone_number' => $phoneNumber]);
+    // Ensure phone number recorded without throwing duplicate error
+    \App\Models\PhoneNumber::firstOrCreate(['phone_number' => $phoneNumber]);
 
         return response()->json([
             'message' => 'User created successfully',
