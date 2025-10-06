@@ -32,7 +32,22 @@ class ShiftController extends Controller
             $query->where('branch_id', $request->input('branch_id'));
         }
         if ($request->filled('employee_id')) {
-            $query->where('employee_id', $request->input('employee_id'));
+            $empInput = $request->input('employee_id');
+
+            // support comma separated ids: ?employee_id=1,2,3
+            if (is_string($empInput) && strpos($empInput, ',') !== false) {
+                $ids = array_filter(array_map('trim', explode(',', $empInput)));
+                $query->whereIn('employee_id', $ids);
+            } else {
+                $empInput = is_string($empInput) ? trim($empInput) : $empInput;
+                // if numeric, compare as integer
+                if (is_numeric($empInput)) {
+                    $query->where('employee_id', (int) $empInput);
+                } else {
+                    // fallback: compare trimmed string value to avoid mismatches
+                    $query->whereRaw('TRIM(CAST(employee_id AS CHAR)) = ?', [$empInput]);
+                }
+            }
         }
         if ($request->filled('employeeName')) {
             $query->where('employeeName', 'like', '%' . $request->input('employeeName') . '%');
