@@ -211,10 +211,25 @@ class OrderController extends Controller
         $employee = $order->processor; // Assumes Staff model has a 'name' attribute
         $numberOfPhotos = $order->orderItems->count();
 
-        // Create SyncJob record
+        // Determine employee id and name (use relation if available, otherwise fall back to processed_by)
+        $employeeId = $order->processed_by ?? null;
+        if ($employee && !$employeeId) {
+            $employeeId = $employee->id ?? $employeeId;
+        }
+
+        $employeeName = 'Unknown';
+        if ($employee) {
+            $employeeName = $employee->name;
+        } elseif ($employeeId) {
+            $staff = \App\Models\Staff::find($employeeId);
+            $employeeName = $staff ? $staff->name : 'Unknown';
+        }
+
+        // Create SyncJob record (include employee_id so it is not null)
         SyncJob::create([
             'branch_id' => $order->branch_id,
-            'employeeName' => $employee ? $employee->name : 'Unknown', // Adjust if Staff model has a different attribute
+            'employee_id' => $employeeId,
+            'employeeName' => $employeeName,
             'pay_amount' => $request->input('pay_amount'),
             'orderprefixcode' => $order->barcode_prefix ?? 'N/A', // Fallback if barcode_prefix is null
             'status' => $order->status ?? 'pending', // Use order status or default to 'pending'
