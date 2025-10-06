@@ -206,37 +206,87 @@ class OrderController extends Controller
         $order->pay_amount = $request->input('pay_amount');
         $order->save();
 
-        // Prepare data for SyncJob
+        // Prepare data for creating SyncJob(s)
         $shift = $order->shift;
-        $employee = $order->processor; // Assumes Staff model has a 'name' attribute
-        $numberOfPhotos = $order->orderItems->count();
+        $totalPay = (float) $request->input('pay_amount');
 
-        // Determine employee id and name (use relation if available, otherwise fall back to processed_by)
-        $employeeId = $order->processed_by ?? null;
-        if ($employee && !$employeeId) {
-            $employeeId = $employee->id ?? $employeeId;
+        // Use photos table (Photo::uploaded_by) to determine per-employee counts
+        $photos = \App\Models\Photo::where('barcode_prefix', $order->barcode_prefix)->get();
+        $totalPhotos = $photos->count();
+
+        if ($totalPhotos === 0) {
+            // still create a single SyncJob fallback
+            $employeeId = $order->processed_by ?? null;
+            $employeeName = 'Unknown';
+            if ($employeeId) {
+                $staff = \App\Models\Staff::find($employeeId);
+                $employeeName = $staff ? $staff->name : 'Unknown';
+            }
+            SyncJob::create([
+                'branch_id' => $order->branch_id,
+                'employee_id' => $employeeId,
+                'employeeName' => $employeeName,
+                'pay_amount' => $totalPay,
+                'orderprefixcode' => $order->barcode_prefix ?? 'N/A',
+                'status' => $order->status ?? 'pending',
+                'shift_name' => $shift ? $shift->name : 'Unknown',
+                'orderphone' => $order->phone_number ?? 'N/A',
+                'number_of_photos' => 0,
+            ]);
+        } else {
+            // Group photos by uploader (uploaded_by on photos table), fallback to processed_by
+            $groups = [];
+            foreach ($photos as $photo) {
+                $uploadedBy = $photo->uploaded_by ?? null;
+                if (empty($uploadedBy)) {
+                    $uploadedBy = $order->processed_by ?? null;
+                }
+                $key = $uploadedBy ?? 'unknown';
+                if (!isset($groups[$key])) {
+                    $groups[$key] = 0;
+                }
+                $groups[$key]++;
+            }
+
+            // Allocate pay amount proportionally to photo counts
+            $allocatedTotal = 0.0;
+            $i = 0;
+            $groupKeys = array_keys($groups);
+            $numGroups = count($groupKeys);
+
+            foreach ($groupKeys as $key) {
+                $count = $groups[$key];
+                $i++;
+                if ($i < $numGroups) {
+                    $share = round($totalPay * ($count / $totalPhotos), 2);
+                    $allocatedTotal += $share;
+                } else {
+                    // last group gets remaining to avoid rounding issues
+                    $share = round($totalPay - $allocatedTotal, 2);
+                }
+
+                $employeeId = is_numeric($key) ? (int) $key : null;
+                $employeeName = 'Unknown';
+                if ($employeeId) {
+                    $staff = \App\Models\Staff::find($employeeId);
+                    $employeeName = $staff ? $staff->name : 'Unknown';
+                } elseif ($key === 'unknown') {
+                    $employeeName = $order->processor?->name ?? 'Unknown';
+                }
+
+                SyncJob::create([
+                    'branch_id' => $order->branch_id,
+                    'employee_id' => $employeeId,
+                    'employeeName' => $employeeName,
+                    'pay_amount' => $share,
+                    'orderprefixcode' => $order->barcode_prefix ?? 'N/A',
+                    'status' => $order->status ?? 'pending',
+                    'shift_name' => $shift ? $shift->name : 'Unknown',
+                    'orderphone' => $order->phone_number ?? 'N/A',
+                    'number_of_photos' => $count,
+                ]);
+            }
         }
-
-        $employeeName = 'Unknown';
-        if ($employee) {
-            $employeeName = $employee->name;
-        } elseif ($employeeId) {
-            $staff = \App\Models\Staff::find($employeeId);
-            $employeeName = $staff ? $staff->name : 'Unknown';
-        }
-
-        // Create SyncJob record (include employee_id so it is not null)
-        SyncJob::create([
-            'branch_id' => $order->branch_id,
-            'employee_id' => $employeeId,
-            'employeeName' => $employeeName,
-            'pay_amount' => $request->input('pay_amount'),
-            'orderprefixcode' => $order->barcode_prefix ?? 'N/A', // Fallback if barcode_prefix is null
-            'status' => $order->status ?? 'pending', // Use order status or default to 'pending'
-            'shift_name' => $shift ? $shift->name : 'Unknown', // Adjust if shift is not found
-            'orderphone' => $order->phone_number ?? 'N/A', // Fallback if phone_number is null
-            'number_of_photos' => $numberOfPhotos,
-        ]);
 
         return new OrderResource($order);
     }
